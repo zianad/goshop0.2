@@ -1,5 +1,6 @@
 {
   "name": "pos-eventhorizon",
+  "homepage": "https://zianad.github.io/goshop0.2",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -9,7 +10,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "electron:start": "vite build && electron .",
-    "package": "vite build && electron-builder"
+    "package": "vite build && electron-builder",
+    "predeploy": "npm run build",
+    "deploy": "npx gh-pages -d dist"
   },
   "dependencies": {
     "@google/genai": "^1.13.0",
@@ -28,7 +31,8 @@
     "typescript": "^5.2.2",
     "vite": "^5.3.3",
     "electron": "^28.0.0",
-    "electron-builder": "^24.6.4"
+    "electron-builder": "^24.6.4",
+    "gh-pages": "^6.1.1"
   },
   "build": {
     "appId": "com.eventhorizon.pos",

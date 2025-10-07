@@ -122,73 +122,50 @@ export async function getAdminUserForStore(storeId: string): Promise<User | null
         .eq('role', 'admin')
         .single();
 
-    if (error) {
+    if (error && error.code !== 'PGRST116') { // PGRST116 means "exact one row not found", which is not an actual error for .single()
         console.error("Error fetching admin user for store:", error);
-        return null;
+        // Re-throw the database error to be caught by the UI layer
+        throw error;
     }
+    // If there's no data but also no error, it means no user was found.
+    // .single() returns data as null in this case, which is what we want.
     return data;
 }
 
-export async function createStoreAndAdmin(name: string, logo: string | undefined, adminPassword: string, adminEmail: string, trialDurationDays: number, address?: string, ice?: string, enableAiReceiptScan?: boolean) {
-    // 1. Generate a unique license key
-    const licenseKey = `LK-${crypto.randomUUID()}`;
+export async function createStoreAndAdmin(name: string, logo: string | undefined, adminPassword: string, adminEmail: string, trialDurationDays: number, address?: string, ice?: string, enableAiReceiptScan?: boolean): Promise<{ licenseKey: string }> {
+    // Calling a database function (RPC) to perform the creation.
+    // This is more secure and robust as it's an atomic transaction that bypasses client-side RLS issues.
+    const { data, error } = await supabase.rpc('create_store_with_admin', {
+        store_name: name,
+        store_logo: logo,
+        admin_password: adminPassword,
+        admin_email: adminEmail,
+        trial_days: trialDurationDays,
+        store_address: address,
+        store_ice: ice,
+        enable_ai: enableAiReceiptScan
+    });
 
-    // 2. Create the store
-    const { data: store, error: storeError } = await supabase
-        .from('stores')
-        .insert({ 
-            name, 
-            logo, 
-            licenseKey, 
-            isActive: false, 
-            trialDurationDays: trialDurationDays,
-            address,
-            ice,
-            enableAiReceiptScan
-        })
-        .select()
-        .single();
-    if (storeError) throw storeError;
-
-    // 3. Create the admin user for that store
-    const { data: admin, error: adminError } = await supabase
-        .from('users')
-        .insert({
-            store_id: store.id,
-            name: 'Admin',
-            email: adminEmail,
-            password: adminPassword,
-            role: 'admin'
-        })
-        .select()
-        .single();
-    if (adminError) throw adminError;
+    if (error) {
+        console.error('Error creating store via RPC:', error);
+        throw error;
+    }
     
-    return { store, admin, licenseKey };
+    // The RPC now handles both store and admin creation atomically and returns the license key string.
+    // We wrap it in an object to match the expected return structure for the calling component.
+    return { licenseKey: data };
 }
 
 export async function deleteStore(storeId: string): Promise<void> {
-    // Define the order of deletion to respect foreign key constraints
-    const tablesToDeleteFrom: (keyof StoreTypeMap)[] = [
-        'returns', 'sales', 'stockBatches', 'purchases', 
-        'productVariants', 'products', 'customers', 
-        'suppliers', 'categories', 'users', 'expenses'
-    ];
+    // Calling a database function (RPC) to perform the deletion.
+    // This is more secure and robust as it bypasses RLS and handles cascading deletes correctly.
+    const { error } = await supabase.rpc('delete_store_and_data', {
+        store_id_to_delete: storeId
+    });
 
-    // Delete related data from all tables
-    for (const table of tablesToDeleteFrom) {
-        const { error } = await supabase.from(table).delete().eq('storeId', storeId);
-        if (error) {
-            console.error(`Error deleting from ${table} for store ${storeId}:`, error);
-            throw error; // Stop the process if any deletion fails
-        }
-    }
-
-    // Finally, delete the store itself
-    const { error: storeError } = await supabase.from('stores').delete().eq('id', storeId);
-    if (storeError) {
-        console.error(`Error deleting store ${storeId}:`, storeError);
-        throw storeError;
+    if (error) {
+        console.error(`Error deleting store ${storeId} via RPC:`, error);
+        throw error;
     }
 }
 

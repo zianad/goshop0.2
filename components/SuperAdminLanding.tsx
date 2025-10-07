@@ -32,11 +32,18 @@ const SuperAdminLanding: React.FC<SuperAdminLandingProps> = ({ onLoginAsStoreAdm
     }, []);
 
     const handleStoreLogin = async (store: Store) => {
-        const admin = await api.getAdminUserForStore(store.id);
-        if (admin) {
-            onLoginAsStoreAdmin(admin, store);
-        } else {
-            alert(t('noAdminForStore'));
+        try {
+            const admin = await api.getAdminUserForStore(store.id);
+            if (admin) {
+                onLoginAsStoreAdmin(admin, store);
+            } else {
+                // This case means the query succeeded but found no user
+                alert(t('noAdminForStore'));
+            }
+        } catch (error: any) {
+            // This case means the query itself failed
+            console.error("Failed to login as admin:", error);
+            alert(`${t('unknownError')}: ${error.message}`); // Show the actual database error
         }
     };
     

@@ -102,8 +102,9 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onG
                 await api.deleteStore(storeId);
                 alert(t('storeDeletedSuccess', { storeName }));
                 await fetchData();
-            } catch (error) {
-                alert(t('storeDeleteError'));
+            } catch (error: any) {
+                console.error("Failed to delete store:", error);
+                alert(`${t('storeDeleteError')}: ${error.message}`);
             }
         }
     };
