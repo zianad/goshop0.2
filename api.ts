@@ -118,7 +118,7 @@ export async function getAdminUserForStore(storeId: string): Promise<User | null
     const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('store_id', storeId)
+        .eq('storeId', storeId)
         .eq('role', 'admin')
         .single();
 
@@ -133,8 +133,6 @@ export async function getAdminUserForStore(storeId: string): Promise<User | null
 }
 
 export async function createStoreAndAdmin(name: string, logo: string | undefined, adminPassword: string, adminEmail: string, trialDurationDays: number, address?: string, ice?: string, enableAiReceiptScan?: boolean): Promise<{ licenseKey: string }> {
-    // Calling a database function (RPC) to perform the creation.
-    // This is more secure and robust as it's an atomic transaction that bypasses client-side RLS issues.
     const { data, error } = await supabase.rpc('create_store_with_admin', {
         store_name: name,
         store_logo: logo,
@@ -151,14 +149,10 @@ export async function createStoreAndAdmin(name: string, logo: string | undefined
         throw error;
     }
     
-    // The RPC now handles both store and admin creation atomically and returns the license key string.
-    // We wrap it in an object to match the expected return structure for the calling component.
     return { licenseKey: data };
 }
 
 export async function deleteStore(storeId: string): Promise<void> {
-    // Calling a database function (RPC) to perform the deletion.
-    // This is more secure and robust as it bypasses RLS and handles cascading deletes correctly.
     const { error } = await supabase.rpc('delete_store_and_data', {
         store_id_to_delete: storeId
     });
