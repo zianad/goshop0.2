@@ -1,0 +1,8 @@
+{
+  "name": "Go-shop 0.2",
+  "description": "Un système de point de vente (POS) multi-magasins complet, développé avec React et TypeScript. Chaque magasin fonctionne de manière indépendante avec son propre ensemble de produits, de ventes, de finances et de comptes d'utilisateurs. Comprend un tableau de bord super-administrateur pour la gestion centralisée des magasins.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "prompt": ""
+}
