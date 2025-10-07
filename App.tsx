@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Product, ProductVariant, CartItem, Sale, Expense, User, Return, Store, Customer, Supplier, Category, Purchase, StockBatch } from './types';
 import { Tab } from './types';
-import { BoxIcon, ShoppingCartIcon, CoinsIcon, LogoutIcon, SettingsIcon, UsersIcon, TruckIcon, TagIcon, SparklesIcon, SunIcon, MoonIcon } from './components/Icons';
+import { BoxIcon, ShoppingCartIcon, CoinsIcon, LogoutIcon, SettingsIcon, UsersIcon, TruckIcon, TagIcon, SparklesIcon, SunIcon, MoonIcon, ArrowLeftIcon } from './components/Icons';
 import ProductManagement from './components/ProductManagement';
 import ServiceManagement from './components/ServiceManagement';
 import PointOfSale from './components/PointOfSale';
@@ -73,7 +73,9 @@ const MainApp: React.FC<{
     store: Store;
     onLogout: () => void;
     handleUpdateStore: (updatedStoreData: Partial<Store>) => Promise<void>;
-} & LanguageProps & ThemeProps> = ({ user, store, onLogout, handleUpdateStore, t, language, setLanguage, theme, toggleTheme }) => {
+    onReturnToPortal: () => void;
+    loggedInViaSuperAdmin: boolean;
+} & LanguageProps & ThemeProps> = ({ user, store, onLogout, handleUpdateStore, onReturnToPortal, loggedInViaSuperAdmin, t, language, setLanguage, theme, toggleTheme }) => {
   const [activeTab, setActiveTab] = useState<Tab>(user.role === 'admin' ? Tab.Finance : Tab.POS);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showPrintableInvoice, setShowPrintableInvoice] = useState<{ sale: Sale; mode: 'invoice' | 'orderForm' } | null>(null);
@@ -216,7 +218,7 @@ const MainApp: React.FC<{
     }
   };
 
-  const addProduct = async (productData: Omit<Product, 'id'>, variantsData: (Omit<ProductVariant, 'id'|'productId'|'storeId'> & { stockQuantity?: number})[]) => {
+  const addProduct = async (productData: Omit<Product, 'id'>, variantsData: (Omit<ProductVariant, 'id'|'productId'|'storeId'> & { stockQuantity?: number })[]) => {
     return await handleApiCall(api.addProduct, productData, variantsData);
   };
   
@@ -408,6 +410,16 @@ const MainApp: React.FC<{
                     <h1 className="text-2xl font-bold">{user.role === 'admin' ? t('adminDashboard') : t('pos')}</h1>
                     <p className="text-sm text-teal-200 dark:text-slate-400">{t('storeLabel')} {store.name}</p>
                 </div>
+                {loggedInViaSuperAdmin && (
+                    <button 
+                        onClick={onReturnToPortal} 
+                        className="ml-4 flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                        title={t('returnToPortal')}
+                    >
+                        <ArrowLeftIcon className="w-5 h-5"/>
+                        <span className="hidden md:inline">{t('returnToPortal')}</span>
+                    </button>
+                )}
             </div>
             <div className="flex items-center gap-3">
                <button onClick={toggleTheme} title="Toggle theme" className="p-2 bg-teal-700 dark:bg-slate-700 hover:bg-teal-800 dark:hover:bg-slate-600 rounded-lg transition-colors">
@@ -477,11 +489,13 @@ const App: React.FC = () => {
         isSuperAdmin: boolean;
         user: User | null;
         store: Store | null;
+        loggedInViaSuperAdmin: boolean;
     }>({
         isAuthenticated: false,
         isSuperAdmin: false,
         user: null,
         store: null,
+        loggedInViaSuperAdmin: false,
     });
     
     const [superAdminView, setSuperAdminView] = useState<'landing' | 'dashboard'>('landing');
@@ -546,6 +560,7 @@ const App: React.FC = () => {
             isSuperAdmin: false,
             user,
             store,
+            loggedInViaSuperAdmin: auth.isSuperAdmin,
         });
     };
     
@@ -555,12 +570,24 @@ const App: React.FC = () => {
             isSuperAdmin: true,
             user: null,
             store: null,
+            loggedInViaSuperAdmin: false,
         });
         setSuperAdminView('landing');
     };
 
     const handleLogout = () => {
-        setAuth({ isAuthenticated: false, isSuperAdmin: false, user: null, store: null });
+        setAuth({ isAuthenticated: false, isSuperAdmin: false, user: null, store: null, loggedInViaSuperAdmin: false });
+        setSuperAdminView('landing');
+    };
+    
+    const handleReturnToPortal = () => {
+        setAuth({
+            isAuthenticated: true,
+            isSuperAdmin: true,
+            user: null,
+            store: null,
+            loggedInViaSuperAdmin: false,
+        });
         setSuperAdminView('landing');
     };
 
@@ -601,7 +628,16 @@ const App: React.FC = () => {
     }
 
     if (auth.user && auth.store) {
-        return <MainApp user={auth.user} store={auth.store} onLogout={handleLogout} handleUpdateStore={handleUpdateStore} {...languageProps} {...themeProps} />;
+        return <MainApp 
+            user={auth.user} 
+            store={auth.store} 
+            onLogout={handleLogout} 
+            handleUpdateStore={handleUpdateStore}
+            onReturnToPortal={handleReturnToPortal}
+            loggedInViaSuperAdmin={auth.loggedInViaSuperAdmin}
+            {...languageProps} 
+            {...themeProps} 
+        />;
     }
     
     // Fallback, should not be reached
