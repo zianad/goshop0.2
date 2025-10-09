@@ -124,7 +124,7 @@ export const translations = {
     adminEmail: "E-mail de l'administrateur",
     adminPassword: 'Mot de passe initial de l\'administrateur',
     addStoreButton: 'Créer le magasin',
-    storeCreatedSuccess: "Magasin créé! Copiez et fournissez cette clé de licence au client:",
+    storeCreatedSuccess: "Magasin créé! Voici les informations de connexion :",
     manageStores: 'Gérer les magasins existants',
     storeUsersAndPins: 'Utilisateurs et codes d\'accès :',
     saveChanges: 'Enregistrer les modifications',
@@ -168,6 +168,8 @@ export const translations = {
     aiScanEnabled: 'Scan IA Activé',
     aiScanDisabled: 'Scan IA Désactivé',
     aiScanFeatureDescription: "Activer la fonctionnalité d'ajout d'articles par scan de reçu via IA.",
+    useThisToLoginFirst: "Utilisez cette clé sur l'écran d'activation initial pour accéder au magasin.",
+    useThisPasswordAfter: "Après avoir utilisé la clé de licence, utilisez ce mot de passe sur l'écran de connexion du magasin.",
 
     // Main App & Header
     adminDashboard: 'Tableau de bord admin',
@@ -622,7 +624,7 @@ export const translations = {
     adminEmail: "البريد الإلكتروني للمدير",
     adminPassword: 'كلمة المرور الأولية للمدير',
     addStoreButton: 'إنشاء المتجر',
-    storeCreatedSuccess: "تم إنشاء المتجر! انسخ وقدم مفتاح الترخيص هذا للزبون:",
+    storeCreatedSuccess: "تم إنشاء المتجر! إليك معلومات تسجيل الدخول:",
     manageStores: 'إدارة المتاجر الحالية',
     storeUsersAndPins: 'المستخدمون ورموز الدخول:',
     saveChanges: 'حفظ التغييرات',
@@ -666,6 +668,8 @@ export const translations = {
     aiScanEnabled: 'المسح مفعّل',
     aiScanDisabled: 'المسح معطّل',
     aiScanFeatureDescription: "تفعيل ميزة إضافة المنتجات عبر مسح الإيصالات بالذكاء الاصطناعي.",
+    useThisToLoginFirst: "استخدم هذا المفتاح في شاشة التفعيل الأولية للوصول إلى المتجر.",
+    useThisPasswordAfter: "بعد استخدام مفتاح الترخيص، استخدم كلمة المرور هذه في شاشة تسجيل الدخول الخاصة بالمتجر.",
 
     // Main App & Header
     adminDashboard: 'لوحة تحكم المدير',

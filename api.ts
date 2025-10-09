@@ -613,11 +613,14 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
     // If a sale/return was made by a user no longer in the backup, re-assign it to the admin.
     const remappedSales = backup.sales.map((sale: Sale) => ({
         ...sale,
-        userId: backupUserIds.has(sale.userId) ? sale.userId : adminId,
+        // FIX: Cast `sale.userId` to string. Since `backup` is parsed from JSON, its properties are of type `any` or `unknown`.
+        // The `Set.has()` method expects a string, so we ensure the type is correct.
+        userId: backupUserIds.has(sale.userId as string) ? sale.userId : adminId,
     }));
     const remappedReturns = backup.returns.map((ret: Return) => ({
         ...ret,
-        userId: backupUserIds.has(ret.userId) ? ret.userId : adminId,
+        // FIX: Cast `ret.userId` to string for the same reason as above.
+        userId: backupUserIds.has(ret.userId as string) ? ret.userId : adminId,
     }));
     
     // 3. Clear existing data for the store (in correct order to respect FK constraints)
