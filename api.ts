@@ -613,13 +613,14 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
     // If a sale/return was made by a user no longer in the backup, re-assign it to the admin.
     const remappedSales = backup.sales.map((sale: Sale) => ({
         ...sale,
-        // FIX: Cast `sale.userId` to string. Since `backup` is parsed from JSON, its properties are of type `any` or `unknown`.
+        // Cast `sale.userId` to string. Since `backup` is parsed from JSON, its properties are of type `any` or `unknown`.
         // The `Set.has()` method expects a string, so we ensure the type is correct.
         userId: backupUserIds.has(sale.userId as string) ? sale.userId : adminId,
     }));
     const remappedReturns = backup.returns.map((ret: Return) => ({
         ...ret,
-        // FIX: Cast `ret.userId` to string for the same reason as above.
+        // Cast `ret.userId` to string for the same reason as above.
+        // The `Set.has()` method expects a string, so we ensure the type is correct.
         userId: backupUserIds.has(ret.userId as string) ? ret.userId : adminId,
     }));
     

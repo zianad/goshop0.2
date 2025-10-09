@@ -620,6 +620,7 @@ const App: React.FC = () => {
             />;
         }
         return <SuperAdminDashboard
+            onLoginAsStoreAdmin={handleLoginSuccess}
             onLogout={handleLogout}
             onGoBack={() => setSuperAdminView('landing')}
             {...languageProps}

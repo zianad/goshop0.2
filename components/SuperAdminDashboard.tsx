@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Store, User } from '../types';
-import { LogoutIcon, PlusIcon, TrashIcon, StoreIcon, UserPlusIcon, SunIcon, MoonIcon, SettingsIcon, ArrowLeftIcon, KeyIcon, SparklesIcon } from './Icons';
+import { LogoutIcon, PlusIcon, TrashIcon, StoreIcon, UserPlusIcon, SunIcon, MoonIcon, SettingsIcon, ArrowLeftIcon, KeyIcon, SparklesIcon, ArrowRightIcon } from './Icons';
 import { Logo } from './Logo';
 import { translations } from '../translations';
 import * as api from '../api';
@@ -10,6 +10,7 @@ type Theme = 'light' | 'dark';
 type TFunction = (key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => string;
 
 interface SuperAdminDashboardProps {
+    onLoginAsStoreAdmin: (user: User, store: Store) => void;
     onLogout: () => void;
     onGoBack: () => void;
     t: TFunction;
@@ -32,7 +33,7 @@ const ToggleSwitch: React.FC<{ checked: boolean, onChange: () => void, labelOn: 
 );
 
 
-const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onGoBack, t, language, setLanguage, theme, toggleTheme }) => {
+const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStoreAdmin, onLogout, onGoBack, t, language, setLanguage, theme, toggleTheme }) => {
     const [stores, setStores] = useState<Store[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     
@@ -40,6 +41,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onG
     const [editingCredentials, setEditingCredentials] = useState<{ [userId: string]: string }>({});
     const [newSellerPins, setNewSellerPins] = useState<{ [storeId: string]: string }>({});
     const [lastGeneratedKey, setLastGeneratedKey] = useState<string | null>(null);
+    const [lastGeneratedPassword, setLastGeneratedPassword] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [activationModal, setActivationModal] = useState<{ storeName: string; code: string } | null>(null);
 
@@ -79,14 +81,18 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onG
     const handleAddStore = async (e: React.FormEvent) => {
         e.preventDefault();
         setLastGeneratedKey(null);
+        setLastGeneratedPassword(null);
         if (!newStore.name || !newStore.adminPassword) {
             alert(t('fillAllFieldsError'));
             return;
         }
 
+        const adminPassword = newStore.adminPassword;
+
         try {
             const { licenseKey } = await api.createStoreAndAdmin(newStore.name, newStore.logo, newStore.adminPassword, newStore.adminEmail, newStore.trialDurationDays, newStore.address, newStore.ice, newStore.enableAiReceiptScan);
             setLastGeneratedKey(licenseKey);
+            setLastGeneratedPassword(adminPassword);
             setNewStore({ name: '', adminEmail: '', adminPassword: '', logo: '', trialDurationDays: 7, address: '', ice: '', enableAiReceiptScan: false });
             const fileInput = document.getElementById('logo') as HTMLInputElement;
             if(fileInput) fileInput.value = '';
@@ -239,6 +245,31 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onG
         // trialStartDate is null, which means it's fully activated
         return <span className="text-xs font-bold px-2 py-1 rounded-full bg-green-200 text-green-800 dark:bg-green-900/50 dark:text-green-300">{t('storeStatus_licensed')}</span>;
     };
+    
+    const handleStoreLogin = async (store: Store) => {
+        try {
+            const admin = await api.getAdminUserForStore(store.id);
+            if (admin) {
+                onLoginAsStoreAdmin(admin, store);
+            } else {
+                alert(t('noAdminForStore'));
+            }
+        } catch (error: any) {
+            console.error("Failed to login as admin:", error);
+            alert(`${t('unknownError')}: ${error.message}`);
+        }
+    };
+
+    const handleLoginToNewStore = () => {
+        if (lastGeneratedKey) {
+            const newStoreObject = stores.find(s => s.licenseKey === lastGeneratedKey);
+            if (newStoreObject) {
+                handleStoreLogin(newStoreObject);
+            } else {
+                alert("Store data not ready. Please wait a moment and try logging in from the main list.");
+            }
+        }
+    };
 
 
     return (
@@ -299,7 +330,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onG
                             </div>
                              <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('adminPassword')}</label>
-                                <input type="text" value={newStore.adminPassword} onChange={e => setNewStore({...newStore, adminPassword: e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" required />
+                                <input type="password" value={newStore.adminPassword} onChange={e => setNewStore({...newStore, adminPassword: e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" required />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('adminEmail')}</label>
@@ -337,13 +368,34 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onG
 
                         <button type="submit" className="w-full md:w-auto bg-teal-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-2"><PlusIcon/>{t('addStoreButton')}</button>
                     </form>
-                    {lastGeneratedKey && (
+                    {lastGeneratedKey && lastGeneratedPassword && (
                         <div className="mt-4 p-4 bg-green-100 dark:bg-green-900/50 rounded-lg text-green-800 dark:text-green-300">
                             <h3 className="font-bold">{t('storeCreatedSuccess')}</h3>
-                            <div className="flex items-center gap-4 mt-2 p-3 bg-white dark:bg-slate-700 rounded-md">
-                                <p className="font-mono text-lg break-all flex-grow">{lastGeneratedKey}</p>
-                                <button onClick={handleCopyKey} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-lg text-sm">{copied ? t('copied') : t('copy')}</button>
+                            <div className="mt-2 space-y-4 text-sm">
+                                <p><strong>{t('storeName')}:</strong> {stores.find(s => s.licenseKey === lastGeneratedKey)?.name}</p>
+                                
+                                <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded border border-yellow-300 dark:border-yellow-700">
+                                    <p className="font-semibold">{t('adminPassword')}:</p>
+                                    <p className="font-mono text-xl my-1">{lastGeneratedPassword}</p>
+                                    <p className="text-xs">{t('useThisPasswordAfter')}</p>
+                                </div>
+
+                                <div>
+                                    <p className="font-semibold mt-2">{t('licenseKey')}:</p>
+                                    <p className="text-xs mb-1">{t('useThisToLoginFirst')}</p>
+                                    <div className="flex items-center gap-4 p-3 bg-white dark:bg-slate-700 rounded-md">
+                                        <p className="font-mono text-lg break-all flex-grow">{lastGeneratedKey}</p>
+                                        <button onClick={handleCopyKey} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-lg text-sm">{copied ? t('copied') : t('copy')}</button>
+                                    </div>
+                                </div>
                             </div>
+                             <button
+                                onClick={handleLoginToNewStore}
+                                className="mt-4 w-full bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <ArrowRightIcon className="w-5 h-5" />
+                                {t('loginAsAdmin')}
+                            </button>
                         </div>
                     )}
                 </div>
@@ -402,7 +454,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onG
                                                 <div className="flex items-center gap-3">
                                                     <span className="font-semibold w-24">{t('admin')} ({adminUser.name})</span>
                                                     <input 
-                                                        type="text" 
+                                                        type="password" 
                                                         placeholder={t('newPassword')}
                                                         defaultValue=""
                                                         onChange={(e) => handleCredentialChange(adminUser.id, e.target.value)}
@@ -413,7 +465,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onG
                                                 <div key={seller.id} className="flex items-center gap-3">
                                                     <span className="font-semibold w-24">{seller.name}</span>
                                                     <input 
-                                                        type="text" 
+                                                        type="password" 
                                                         placeholder={t('newPin')}
                                                         defaultValue=""
                                                         onChange={(e) => handleCredentialChange(seller.id, e.target.value)}
@@ -425,7 +477,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLogout, onG
                                             <button onClick={() => handleSaveCredentials(store.id)} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm">{t('saveChanges')}</button>
                                             <div className="flex items-center gap-2">
                                                 <input
-                                                  type="text"
+                                                  type="password"
                                                   placeholder={t('newSellerPinPlaceholder')}
                                                   value={newSellerPins[store.id] || ''}
                                                   onChange={(e) => setNewSellerPins(prev => ({...prev, [store.id]: e.target.value}))}
