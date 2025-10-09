@@ -36,6 +36,15 @@ export async function getStoreByLicenseKey(licenseKey: string): Promise<Store | 
         console.error('Error fetching store by license key:', error);
         return null;
     }
+    // If a store is found, we mark it as active upon first use of the license key.
+    if (data) {
+        const { error: updateError } = await supabase.from('stores').update({ isActive: true }).eq('id', data.id);
+        if (updateError) {
+            console.error('Error activating store upon license use:', updateError);
+            // If activation fails, treat it as if the store wasn't found to prevent inconsistent state.
+            return null;
+        }
+    }
     return data;
 }
 
@@ -620,7 +629,6 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
     const remappedReturns = backup.returns.map((ret: Return) => ({
         ...ret,
         // Cast `ret.userId` to string for the same reason as above.
-        // The `Set.has()` method expects a string, so we ensure the type is correct.
         userId: backupUserIds.has(ret.userId as string) ? ret.userId : adminId,
     }));
     
