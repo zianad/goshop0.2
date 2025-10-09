@@ -36,15 +36,31 @@ export async function getStoreByLicenseKey(licenseKey: string): Promise<Store | 
         console.error('Error fetching store by license key:', error);
         return null;
     }
-    // If a store is found, we mark it as active upon first use of the license key.
-    if (data) {
-        const { error: updateError } = await supabase.from('stores').update({ isActive: true }).eq('id', data.id);
+
+    // This logic handles the very first time a license is used for a store.
+    // It sets the trial start date and activates it.
+    if (data && !data.trialStartDate) {
+        const { data: updatedStore, error: updateError } = await supabase
+            .from('stores')
+            .update({ 
+                isActive: true, 
+                trialStartDate: new Date().toISOString(),
+             })
+            .eq('id', data.id)
+            .select()
+            .single();
+        
         if (updateError) {
-            console.error('Error activating store upon license use:', updateError);
-            // If activation fails, treat it as if the store wasn't found to prevent inconsistent state.
+            console.error('Error activating store for the first time:', updateError);
+            // If activation fails, something is wrong, don't proceed.
             return null;
         }
+        // Return the fresh, activated store object to prevent stale state issues.
+        return updatedStore;
     }
+
+    // If the store was already activated before (even on another device),
+    // just return its current data. The login function will check its active status.
     return data;
 }
 
@@ -628,6 +644,7 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
     }));
     const remappedReturns = backup.returns.map((ret: Return) => ({
         ...ret,
+        // Cast `ret.userId` to string for the same reason as above.
         // Cast `ret.userId` to string for the same reason as above.
         userId: backupUserIds.has(ret.userId as string) ? ret.userId : adminId,
     }));
