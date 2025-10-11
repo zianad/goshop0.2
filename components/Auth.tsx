@@ -179,19 +179,20 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onSuperAdminLogin, t, langu
         e.preventDefault();
         setError(null);
         setIsLoading(true);
-        if (!licenseKey) {
+        const trimmedLicenseKey = licenseKey.trim();
+        if (!trimmedLicenseKey) {
             setError(t('fillAllFields'));
             setIsLoading(false);
             return;
         }
 
         try {
-            if (licenseKey === SUPER_ADMIN_PIN) {
+            if (trimmedLicenseKey === SUPER_ADMIN_PIN) {
                 onSuperAdminLogin();
                 return;
             }
 
-            const store = await api.getStoreByLicenseKey(licenseKey);
+            const store = await api.getStoreByLicenseKey(trimmedLicenseKey);
             if (store) {
                 const licenseInfoToStore = { storeId: store.id };
                 localStorage.setItem('pos-license', JSON.stringify(licenseInfoToStore));

@@ -42,7 +42,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
     const [newSellerPins, setNewSellerPins] = useState<{ [storeId: string]: string }>({});
     const [lastGeneratedKey, setLastGeneratedKey] = useState<string | null>(null);
     const [lastGeneratedPassword, setLastGeneratedPassword] = useState<string | null>(null);
-    const [copied, setCopied] = useState(false);
+    const [copiedIdentifier, setCopiedIdentifier] = useState<string | null>(null);
     const [activationModal, setActivationModal] = useState<{ storeName: string; code: string } | null>(null);
 
     const MASTER_SECRET_KEY = 'GoShop-Activation-Key-Abzn-Secret-2024';
@@ -98,7 +98,11 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
             if(fileInput) fileInput.value = '';
             await fetchData();
         } catch (error: any) {
-             alert(t(error.message as keyof typeof translations.fr) || error.message);
+             if (error instanceof TypeError && error.message === 'Failed to fetch') {
+                alert(t('failedToFetchError_CORS'));
+            } else {
+                alert(t(error.message as keyof typeof translations.fr) || error.message);
+            }
         }
     };
 
@@ -207,22 +211,14 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
         setActivationModal({ storeName: store.name, code });
     };
 
-    const handleCopyCode = () => {
-        if (!activationModal) return;
-        navigator.clipboard.writeText(activationModal.code);
-        setCopied(true);
+    const handleCopy = (textToCopy: string, identifier: string) => {
+        navigator.clipboard.writeText(textToCopy);
+        setCopiedIdentifier(identifier);
         setTimeout(() => {
-            setCopied(false)
+            setCopiedIdentifier(null);
         }, 2000);
     };
     
-    const handleCopyKey = () => {
-        if (!lastGeneratedKey) return;
-        navigator.clipboard.writeText(lastGeneratedKey);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
     const getTrialStatus = (store: Store) => {
         if (!store.licenseProof) {
             return <span className="text-xs font-bold px-2 py-1 rounded-full bg-orange-200 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300">{t('storeStatus_notActivated')}</span>;
@@ -281,8 +277,8 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
                         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('copyAndSendToClient')}</p>
                         <div className="p-4 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-between gap-4">
                             <p className="font-mono text-lg break-all text-slate-800 dark:text-slate-100">{activationModal.code}</p>
-                            <button onClick={handleCopyCode} className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-3 rounded-lg text-sm shrink-0">
-                                {copied ? t('copied') : t('copy')}
+                            <button onClick={() => handleCopy(activationModal.code, 'activation-code')} className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-3 rounded-lg text-sm shrink-0">
+                                {copiedIdentifier === 'activation-code' ? t('copied') : t('copy')}
                             </button>
                         </div>
                         <button onClick={() => setActivationModal(null)} className="mt-6 bg-gray-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500">
@@ -385,7 +381,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
                                     <p className="text-xs mb-1">{t('useThisToLoginFirst')}</p>
                                     <div className="flex items-center gap-4 p-3 bg-white dark:bg-slate-700 rounded-md">
                                         <p className="font-mono text-lg break-all flex-grow">{lastGeneratedKey}</p>
-                                        <button onClick={handleCopyKey} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-lg text-sm">{copied ? t('copied') : t('copy')}</button>
+                                        <button onClick={() => handleCopy(lastGeneratedKey, 'new-key')} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-lg text-sm">{copiedIdentifier === 'new-key' ? t('copied') : t('copy')}</button>
                                     </div>
                                 </div>
                             </div>
@@ -415,8 +411,18 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
                                             <Logo url={store.logo} className="w-16 h-16 rounded-lg bg-white object-cover" />
                                             <div>
                                                 <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{store.name}</h3>
-                                                <p className="text-sm font-mono text-slate-500 dark:text-slate-400">{t('licenseKey')}: {store.licenseKey}</p>
-                                                <p className="text-sm text-slate-500 dark:text-slate-400">{t('trialDurationDisplay', { days: store.trialDurationDays })}</p>
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="text-sm font-mono text-slate-500 dark:text-slate-400">{t('licenseKey')}:</span>
+                                                    <span className="font-mono text-sm bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded break-all">{store.licenseKey}</span>
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => handleCopy(store.licenseKey, store.id)} 
+                                                        className="text-sm font-semibold text-teal-600 dark:text-teal-400 hover:underline"
+                                                    >
+                                                        {copiedIdentifier === store.id ? t('copied') : t('copy')}
+                                                    </button>
+                                                </div>
+                                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t('trialDurationDisplay', { days: store.trialDurationDays })}</p>
                                             </div>
                                         </div>
                                         <div className="flex flex-col items-end gap-3">
