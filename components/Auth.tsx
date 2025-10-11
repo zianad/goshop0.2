@@ -1,355 +1,742 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { DeveloperLogo } from './DeveloperLogo';
-import { translations } from '../translations';
-import * as api from '../api';
-import type { User, Store } from '../types';
-import { SunIcon, MoonIcon } from './Icons';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient';
+import type { Product, ProductVariant, CartItem, Sale, Expense, User, Return, Store, Customer, Supplier, Category, Purchase, StockBatch, StoreTypeMap } from './types';
+import { IDBPDatabase, openDB } from 'idb';
 
-type Language = 'fr' | 'ar';
-type Theme = 'light' | 'dark';
-type TFunction = (key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => string;
+const DB_NAME = 'pos-app-db';
 
-interface AuthProps {
-  onLoginSuccess: (user: User, store: Store) => void;
-  onSuperAdminLogin: () => void;
-  t: TFunction;
-  language: Language;
-  setLanguage: (lang: Language) => void;
-  theme: Theme;
-  toggleTheme: () => void;
+async function getDB(): Promise<IDBPDatabase> {
+  return openDB(DB_NAME, 1, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains('keyval')) {
+        db.createObjectStore('keyval');
+      }
+    },
+  });
 }
 
-const SUPER_ADMIN_PIN = 'Abzn11241984';
+export async function saveCart(storeId: string, userId: string, cart: CartItem[]): Promise<void> {
+    const db = await getDB();
+    await db.put('keyval', cart, `cart-${storeId}-${userId}`);
+}
 
-type AuthStep = 'loading' | 'license_entry' | 'expired_trial' | 'login';
+export async function loadCart(storeId: string, userId: string): Promise<CartItem[]> {
+    const db = await getDB();
+    return (await db.get('keyval', `cart-${storeId}-${userId}`)) || [];
+}
+export async function clearCartFromDB(storeId: string, userId: string): Promise<void> {
+    const db = await getDB();
+    await db.delete('keyval', `cart-${storeId}-${userId}`);
+}
 
-const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onSuperAdminLogin, t, language, setLanguage, theme, toggleTheme }) => {
-    const [step, setStep] = useState<AuthStep>('loading');
-    const [error, setError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+
+export async function getStoreByLicenseKey(licenseKey: string): Promise<Store | null> {
+    const originalKey = licenseKey.trim();
+    let storeData: Store | null = null;
     
-    const [licensedStore, setLicensedStore] = useState<Store | null>(null);
-    const [loginSecret, setLoginSecret] = useState('');
-    const [rememberMe, setRememberMe] = useState(false);
-    const [activationCode, setActivationCode] = useState('');
-    const [licenseKey, setLicenseKey] = useState('');
+    // Attempt 1: Try the key as entered by the user. Use array select instead of .single() to avoid 406.
+    const { data: originalData, error: originalError } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('licenseKey', originalKey)
+        .limit(1);
 
-    const checkStoreOnMount = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const storedLicense = localStorage.getItem('pos-license');
-            if (!storedLicense) {
-                setStep('license_entry');
-                return;
-            }
-
-            // Existing user: validate store from local storage
-            const localLicenseData: { storeId: string } = JSON.parse(storedLicense);
-            const freshStoreData = await api.getStoreById(localLicenseData.storeId);
-            
-            if (freshStoreData) {
-                // Check for trial expiration
-                if (freshStoreData.trialStartDate) {
-                    const trialStart = new Date(freshStoreData.trialStartDate);
-                    const expiryDate = new Date(trialStart);
-                    expiryDate.setDate(trialStart.getDate() + (freshStoreData.trialDurationDays ?? 7));
-                    if (new Date() > expiryDate) {
-                        setLicensedStore(freshStoreData);
-                        setStep('expired_trial'); // Trial has ended, show activation screen
-                    } else {
-                        setLicensedStore(freshStoreData);
-                        setStep('login'); // Trial is active
-                    }
-                } else {
-                    setLicensedStore(freshStoreData);
-                    setStep('login'); // Permanently activated
-                }
-            } else {
-                 throw new Error('Store not found');
-            }
-
-        } catch (e: any) {
-            localStorage.removeItem('pos-license');
-            setError(t((e.message || 'unknownError') as keyof typeof translations.fr) || e.message);
-            setStep('license_entry');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [t]);
-
-    useEffect(() => {
-        if(step === 'loading') {
-            checkStoreOnMount();
-        }
-    }, [checkStoreOnMount, step]);
+    if (originalError) {
+        console.error('Error fetching store with original key:', originalError);
+        throw originalError;
+    }
     
-    useEffect(() => {
-        if (step === 'login' && licensedStore) {
-            const rememberedSecret = localStorage.getItem(`pos-remembered-secret-${licensedStore.id}`);
-            if (rememberedSecret) {
-                setLoginSecret(rememberedSecret);
-                setRememberMe(true);
-            } else {
-                setLoginSecret('');
-                setRememberMe(false);
-            }
-        }
-    }, [step, licensedStore]);
+    if (originalData && originalData.length > 0) {
+        storeData = originalData[0];
+    }
 
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError(null);
-        if (!licensedStore) {
-            setError(t('unknownError'));
-            setStep('license_entry');
-            return;
-        }
+    // Attempt 2: If not found and prefix is missing, try adding the prefix.
+    if (!storeData && !originalKey.toUpperCase().startsWith('LK-')) {
+        const prefixedKey = `LK-${originalKey}`;
+        const { data: prefixedData, error: prefixedError } = await supabase
+            .from('stores')
+            .select('*')
+            .eq('licenseKey', prefixedKey)
+            .limit(1);
 
-        setIsLoading(true);
-        if (!loginSecret) {
-            setError(t('fillAllFields'));
-            setIsLoading(false);
-            return;
+        if (prefixedError) {
+            console.error('Error fetching store with prefixed key:', prefixedError);
+            throw prefixedError;
         }
         
-        try {
-            if (loginSecret === SUPER_ADMIN_PIN) {
-                onSuperAdminLogin();
-                return;
-            }
-
-            const result = await api.login(licensedStore.id, loginSecret);
-            if(rememberMe) {
-                localStorage.setItem(`pos-remembered-secret-${licensedStore.id}`, loginSecret);
-            } else {
-                localStorage.removeItem(`pos-remembered-secret-${licensedStore.id}`);
-            }
-            onLoginSuccess(result.user, result.store);
-        } catch(err: any) {
-            let errorMessageKey: keyof typeof translations.fr | null = null;
-            let fallbackMessage = t('unknownError');
-
-            if (err && err.message) {
-                const lowerCaseMessage = err.message.toLowerCase();
-                
-                // Check for specific API key / auth errors from Supabase
-                if (lowerCaseMessage.includes('invalid api key') || lowerCaseMessage.includes('unauthorized')) {
-                    errorMessageKey = 'invalidApiKeyError';
-                }
-                // Check for custom errors thrown from api.ts
-                else if (err.message === 'storeNotFound' || err.message === 'storeDisabledError' || err.message === 'invalidCredentialsError') {
-                    errorMessageKey = err.message as keyof typeof translations.fr;
-                }
-                
-                // If it's not a known error, use the raw message as fallback
-                fallbackMessage = err.message;
-            }
-
-            // Use the translated message if a key was found, otherwise use the fallback
-            setError(errorMessageKey ? t(errorMessageKey) : fallbackMessage);
-        } finally {
-            setIsLoading(false);
+        if (prefixedData && prefixedData.length > 0) {
+            storeData = prefixedData[0];
         }
-    };
+    }
+
+    // If no store was found after all attempts, return null.
+    if (!storeData) {
+        return null;
+    }
     
-    const handleActivateWithCode = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!licensedStore) return;
-        setIsLoading(true);
-        setError(null);
-    
-        try {
-            const success = await api.verifyAndActivateStoreWithCode(licensedStore.id, activationCode);
-            if (success) {
-                alert(t('activationSuccessReload'));
-                window.location.reload();
-            } else {
-                throw new Error('invalidActivationCode');
-            }
-        } catch (err: any) {
-            const errorMessage = t(err.message as keyof typeof translations.fr) || err.message;
-            setError(errorMessage);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    
-    const handleLicenseSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError(null);
-        setIsLoading(true);
-        const trimmedLicenseKey = licenseKey.trim();
-        if (!trimmedLicenseKey) {
-            setError(t('fillAllFields'));
-            setIsLoading(false);
-            return;
-        }
+    // Now that we have found the store data, handle the activation logic.
+    if (!storeData.trialStartDate) {
+        // First time activation. Update the store.
+        // Use .then() to avoid the client requesting the updated row back (return=minimal),
+        // which can cause a 406 error if RLS policies prevent the anon user
+        // from SELECTing the row after it has been updated.
+        const updatePromise = new Promise<void>((resolve, reject) => {
+            supabase
+                .from('stores')
+                .update({ 
+                    isActive: true, 
+                    trialStartDate: new Date().toISOString(),
+                })
+                .eq('id', storeData!.id)
+                .then(({ error: updateError }) => {
+                    if (updateError) {
+                        console.error('Error during store activation update:', updateError);
+                        reject(updateError);
+                    } else {
+                        resolve();
+                    }
+                });
+        });
 
         try {
-            if (trimmedLicenseKey === SUPER_ADMIN_PIN) {
-                onSuperAdminLogin();
-                return;
-            }
-
-            const store = await api.getStoreByLicenseKey(trimmedLicenseKey);
-            if (store) {
-                const licenseInfoToStore = { storeId: store.id };
-                localStorage.setItem('pos-license', JSON.stringify(licenseInfoToStore));
-                setLicensedStore(store);
-                if (store.trialStartDate) {
-                     const trialStart = new Date(store.trialStartDate);
-                     const expiryDate = new Date(trialStart);
-                     expiryDate.setDate(trialStart.getDate() + (store.trialDurationDays ?? 7));
-                     if (new Date() > expiryDate) {
-                         setStep('expired_trial');
-                     } else {
-                         setStep('login');
-                     }
-                } else {
-                     setStep('login');
-                }
-            } else {
-                setError(t('invalidActivationCode'));
-            }
-        } catch (err: any) {
-            console.error("Error activating store for the first time:", err);
-            // The 406 error from Supabase during activation due to RLS policies is not a user-fixable error.
-            // Show a user-friendly message that prompts them to check the key.
-            if (err.message?.includes('406')) {
-                 setError(t('invalidActivationCode'));
-            } else {
-                setError(t('unknownError'));
-            }
-        } finally {
-            setIsLoading(false);
+            await updatePromise;
+            // If the update succeeds, optimistically return the updated store object.
+            return {
+                ...storeData,
+                isActive: true,
+                trialStartDate: new Date().toISOString(),
+            };
+        } catch (updateError) {
+            // Rethrow the error to be handled by the Auth component
+            throw updateError;
         }
-    };
+    }
 
-    const renderLoginForm = () => (
-        <form onSubmit={handleLogin} className="space-y-4">
-            <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">{t('login')}</h2>
-            {licensedStore ? (
-                <>
-                    <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{t('forStore', {storeName: licensedStore.name})}</p>
-                    
-                    <div>
-                        <label htmlFor="loginSecret" className="sr-only">{t('passwordOrPin')}</label>
-                        <input 
-                          id="loginSecret" 
-                          type="password" 
-                          value={loginSecret} 
-                          onChange={e => setLoginSecret(e.target.value)} 
-                          placeholder={t('passwordOrPin')} 
-                          className="w-full px-4 py-3 border rounded-lg text-center text-xl tracking-widest bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" 
-                          required 
-                          autoFocus
-                        />
-                    </div>
+    return storeData;
+}
 
-                    <div className="flex items-center justify-start text-left rtl:text-right">
-                        <input 
-                            id="rememberMe" 
-                            type="checkbox" 
-                            checked={rememberMe}
-                            onChange={(e) => setRememberMe(e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 bg-gray-100 dark:bg-slate-600"
-                        />
-                        <label htmlFor="rememberMe" className="ml-2 rtl:mr-2 rtl:ml-0 block text-sm text-gray-700 dark:text-gray-400 cursor-pointer">
-                            {t('rememberPin')}
-                        </label>
-                    </div>
-                </>
-            ) : (
-                <p className="text-slate-500 dark:text-slate-400">{t('loading')}...</p>
-            )}
-            
-            <button type="submit" disabled={isLoading} className="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-700 disabled:bg-gray-400">{isLoading ? `${t('loading')}...` : t('login')}</button>
-        </form>
-    );
+export async function getStoreById(storeId: string): Promise<Store | null> {
+    const { data, error } = await supabase.from('stores').select('*').eq('id', storeId).single();
+    if (error) throw new Error('storeNotFound');
+    return data;
+}
 
-    const renderExpiredTrialForm = () => (
-        <form onSubmit={handleActivateWithCode} className="space-y-4">
-            <h2 className="text-2xl font-bold text-orange-600 dark:text-orange-400">{t('trialHasExpired')}</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{t('contactAdminToActivate')}</p>
-             <div>
-                <label htmlFor="activationCode" className="sr-only">{t('activationCode')}</label>
-                <input 
-                  id="activationCode" 
-                  type="text" 
-                  value={activationCode} 
-                  onChange={e => setActivationCode(e.target.value)} 
-                  placeholder={t('enterActivationCode')} 
-                  className="w-full px-4 py-3 border rounded-lg text-center bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" 
-                  required 
-                  autoFocus
-                />
-            </div>
-            <button type="submit" disabled={isLoading} className="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{isLoading ? `${t('loading')}...` : t('activateApplication')}</button>
-        </form>
-    );
+export async function verifyAndActivateStoreWithCode(storeId: string, activationCode: string): Promise<boolean> {
+    const { data: store, error } = await supabase.from('stores').select('id, trialStartDate, licenseProof').eq('id', storeId).single();
+    if (error || !store) return false;
 
-    const renderLicenseForm = () => (
-        <form onSubmit={handleLicenseSubmit} className="space-y-4">
-            <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">{t('activateYourCompany')}</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{t('enterLicenseKey')}</p>
-            <div>
-                <label htmlFor="licenseKey" className="sr-only">{t('licenseKey')}</label>
-                <input 
-                  id="licenseKey" 
-                  type="text" 
-                  value={licenseKey} 
-                  onChange={e => setLicenseKey(e.target.value)} 
-                  placeholder={t('licenseKey')} 
-                  className="w-full px-4 py-3 border rounded-lg text-center bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" 
-                  required 
-                  autoFocus
-                />
-            </div>
-            <button type="submit" disabled={isLoading} className="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-700 disabled:bg-gray-400">{isLoading ? `${t('loading')}...` : t('activate')}</button>
-        </form>
-    );
+    // The logic to verify the activation code would be here.
+    // For this example, we assume any code starting with 'PERM-' is valid for simplicity.
+    if (activationCode.startsWith('PERM-')) {
+        await supabase.from('stores').update({ trialStartDate: null, isActive: true }).eq('id', storeId);
+        return true;
+    }
+    return false;
+}
 
-    const renderContent = () => {
-        if (isLoading || step === 'loading') {
-            return <p className="text-slate-500 dark:text-slate-400">{t('loading')}...</p>;
+export async function login(store: Store, secret: string): Promise<{ user: User, store: Store }> {
+    if (!store.isActive) {
+        throw new Error('storeDisabledError');
+    }
+
+    // Try to log in as admin first (password)
+    let { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('storeId', store.id)
+        .eq('role', 'admin')
+        .eq('password', secret)
+        .single();
+
+    // If not admin, try to log in as seller (pin)
+    if (error || !user) {
+        const { data: sellerUser, error: sellerError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('storeId', store.id)
+            .eq('role', 'seller')
+            .eq('pin', secret)
+            .single();
+        
+        if (sellerError || !sellerUser) {
+            throw new Error('invalidCredentialsError');
         }
-        switch (step) {
-            case 'license_entry':
-                return renderLicenseForm();
-            case 'login':
-                return renderLoginForm();
-            case 'expired_trial':
-                return renderExpiredTrialForm();
-            default:
-                 return <button onClick={() => setStep('loading')} className="text-teal-600 hover:underline">{t('reactivationSuccess')}</button>;
-        }
-    };
+        user = sellerUser;
+    }
 
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-900 p-4">
-            <div className="absolute top-4 right-4 rtl:right-auto rtl:left-4 flex items-center gap-3">
-                 <button onClick={toggleTheme} title="Toggle theme" className="p-2 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-                      {theme === 'light' ? <MoonIcon className="w-5 h-5"/> : <SunIcon className="w-5 h-5" />}
-                 </button>
-                 <button onClick={() => setLanguage(language === 'fr' ? 'ar' : 'fr')} className="px-4 py-2 text-sm font-bold bg-white dark:bg-slate-800 text-teal-600 dark:text-teal-300 border border-gray-300 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-                    {language === 'fr' ? 'العربية' : 'Français'}
-                </button>
-            </div>
-            <div className="text-center mb-8">
-                <DeveloperLogo className="w-80 h-auto mx-auto" />
-                <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                    <p>by Eventhorizon solution</p>
-                    <p>0622119357</p>
-                </div>
-            </div>
-            <div className="p-8 bg-white dark:bg-slate-800 rounded-xl shadow-lg max-w-sm w-full text-center">
-                {error && <p className="text-red-500 dark:text-red-400 text-sm mb-4 bg-red-50 dark:bg-red-900/30 p-3 rounded-lg">{error}</p>}
-                
-                {renderContent()}
-            </div>
-        </div>
+    return { user, store };
+}
+
+export async function getAllStores(): Promise<Store[]> {
+    const { data, error } = await supabase.from('stores').select('*');
+    if (error) {
+        console.error('Error fetching stores:', error);
+        return [];
+    }
+    return data;
+}
+
+export async function getAllUsers(): Promise<User[]> {
+    const { data, error } = await supabase.from('users').select('*');
+    if (error) {
+        console.error('Error fetching users:', error);
+        return [];
+    }
+    return data;
+}
+
+export async function getAdminUserForStore(storeId: string): Promise<User | null> {
+    const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('storeId', storeId)
+        .eq('role', 'admin')
+        .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 means "exact one row not found", which is not an actual error for .single()
+        console.error("Error fetching admin user for store:", error);
+        // Re-throw the database error to be caught by the UI layer
+        throw error;
+    }
+    // If there's no data but also no error, it means no user was found.
+    // .single() returns data as null in this case, which is what we want.
+    return data;
+}
+
+export async function createStoreAndAdmin(name: string, logo: string | undefined, adminPassword: string, adminEmail: string, trialDurationDays: number, address?: string, ice?: string, enableAiReceiptScan?: boolean): Promise<{ licenseKey: string }> {
+    const { data, error } = await supabase.rpc('create_store_with_admin', {
+        store_name: name,
+        store_logo: logo,
+        admin_password: adminPassword,
+        admin_email: adminEmail,
+        trial_days: trialDurationDays,
+        store_address: address,
+        store_ice: ice,
+        enable_ai: enableAiReceiptScan
+    });
+
+    if (error) {
+        console.error('Error creating store via RPC:', error);
+        throw error;
+    }
+    
+    return { licenseKey: data };
+}
+
+export async function deleteStore(storeId: string): Promise<void> {
+    const { error } = await supabase.rpc('delete_store_and_data', {
+        store_id_to_delete: storeId
+    });
+
+    if (error) {
+        console.error(`Error deleting store ${storeId} via RPC:`, error);
+        throw error;
+    }
+}
+
+
+export async function updateUser(user: User): Promise<void> {
+    const { error } = await supabase.from('users').update(user).eq('id', user.id);
+    if (error) throw error;
+}
+
+export async function updateStore(store: Store): Promise<void> {
+    const { error } = await supabase.from('stores').update(store).eq('id', store.id);
+    if (error) throw error;
+}
+
+export async function addUser(user: Omit<User, 'id'>): Promise<User | undefined> {
+    const { data, error } = await supabase.from('users').insert(user).select().single();
+    if(error) throw error;
+    return data;
+}
+
+
+// --- Main App Data Fetch ---
+export async function getStoreData(storeId: string): Promise<Partial<StoreTypeMap>> {
+    const tables: (keyof StoreTypeMap)[] = ['products', 'productVariants', 'sales', 'expenses', 'customers', 'suppliers', 'returns', 'categories', 'purchases', 'stockBatches'];
+    const promises = tables.map(table =>
+        supabase.from(table).select('*').eq('storeId', storeId)
     );
+
+    const results = await Promise.all(promises);
+
+    const data: Partial<StoreTypeMap> = {};
+    results.forEach((result, index) => {
+        if (result.error) {
+            console.error(`Error fetching ${tables[index]}:`, result.error);
+        } else {
+            (data as any)[tables[index]] = result.data;
+        }
+    });
+
+    return data;
+}
+
+// --- Product & Stock Management ---
+export const addProduct = async (productData: Omit<Product, 'id'>, variantsData: (Omit<ProductVariant, 'id'|'productId'|'storeId'> & { stockQuantity?: number })[]) => {
+    // 1. Insert the product
+    const { data: product, error: productError } = await supabase
+        .from('products')
+        .insert(productData)
+        .select()
+        .single();
+    if (productError) throw productError;
+
+    if (variantsData.length === 0) {
+        return { product, variants: [] };
+    }
+    
+    // 2. Prepare variants and stock batches
+    const variantsToInsert: Omit<ProductVariant, 'id'>[] = [];
+    const stockBatchesToInsert: Omit<StockBatch, 'id'>[] = [];
+    
+    const createdVariants: ProductVariant[] = [];
+
+    for(const v of variantsData) {
+        const variantId = crypto.randomUUID();
+        const { stockQuantity, ...variantDetails } = v;
+
+        const newVariant: Omit<ProductVariant, 'id'> = {
+            ...variantDetails,
+            storeId: product.storeId,
+            productId: product.id,
+        };
+        // We're inserting one by one to get the ID back for the stock batch
+        const { data: createdVariant, error: variantError } = await supabase.from('productVariants').insert(newVariant).select().single();
+        if(variantError) throw variantError;
+        
+        createdVariants.push(createdVariant);
+
+        if (stockQuantity && stockQuantity > 0) {
+            stockBatchesToInsert.push({
+                storeId: product.storeId,
+                variantId: createdVariant.id,
+                quantity: stockQuantity,
+                purchasePrice: variantDetails.purchasePrice,
+                createdAt: new Date().toISOString()
+            });
+        }
+    }
+    
+    // 3. Insert stock batches if any
+    if (stockBatchesToInsert.length > 0) {
+        const { error: stockError } = await supabase.from('stockBatches').insert(stockBatchesToInsert);
+        if (stockError) throw stockError;
+    }
+
+    return { product, variants: createdVariants };
 };
 
-export default Auth;
+export const updateProduct = async (productData: Product, variantsData: (Partial<ProductVariant> & { stockQuantity?: number })[]) => {
+    // 1. Update the product itself
+    const { error: productError } = await supabase.from('products').update(productData).eq('id', productData.id);
+    if(productError) throw productError;
+
+    // 2. Figure out which variants are new, updated, or deleted
+    const existingVariants = await supabase.from('productVariants').select('id').eq('productId', productData.id);
+    if(existingVariants.error) throw existingVariants.error;
+    
+    const existingVariantIds = new Set(existingVariants.data.map(v => v.id));
+    const incomingVariantIds = new Set(variantsData.map(v => v.id).filter(Boolean));
+    
+    const variantsToDelete = Array.from(existingVariantIds).filter(id => !incomingVariantIds.has(id));
+    const variantsToUpdate = variantsData.filter(v => v.id && existingVariantIds.has(v.id));
+    const variantsToAdd = variantsData.filter(v => !v.id);
+
+    // 3. Perform DB operations
+    if (variantsToDelete.length > 0) {
+        await supabase.from('productVariants').delete().in('id', variantsToDelete);
+        await supabase.from('stockBatches').delete().in('variantId', variantsToDelete);
+    }
+    if (variantsToUpdate.length > 0) {
+        for (const variant of variantsToUpdate) {
+            const { stockQuantity, ...variantDetails } = variant;
+            await supabase.from('productVariants').update(variantDetails).eq('id', variantDetails.id!);
+        }
+    }
+    if (variantsToAdd.length > 0) {
+        for (const variant of variantsToAdd) {
+            const { stockQuantity, ...variantDetails } = variant;
+            const newVariantData: Omit<ProductVariant, 'id'> = {
+                ...(variantDetails as Omit<ProductVariant, 'id'|'storeId'|'productId'>),
+                storeId: productData.storeId,
+                productId: productData.id
+            };
+            const { data: newVariant, error } = await supabase.from('productVariants').insert(newVariantData).select().single();
+            if (error) throw error;
+            
+            if (stockQuantity && stockQuantity > 0) {
+                await supabase.from('stockBatches').insert({
+                    storeId: productData.storeId,
+                    variantId: newVariant.id,
+                    quantity: stockQuantity,
+                    purchasePrice: newVariant.purchasePrice,
+                    createdAt: new Date().toISOString()
+                });
+            }
+        }
+    }
+};
+
+export const deleteProduct = async (id: string) => {
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) throw error;
+};
+
+export const addStockAndUpdateVariant = async (storeId: string, variantId: string, quantity: number, purchasePrice: number, sellingPrice: number, supplierId: string | undefined) => {
+    const { error: stockError } = await supabase.from('stockBatches').insert({
+        storeId,
+        variantId,
+        quantity,
+        purchasePrice,
+        createdAt: new Date().toISOString()
+    });
+    if (stockError) throw stockError;
+    
+    // Also update the variant's purchase and selling price
+    const { error: variantError } = await supabase.from('productVariants').update({
+        purchasePrice: purchasePrice,
+        price: sellingPrice
+    }).eq('id', variantId);
+    if(variantError) throw variantError;
+
+     // Record the purchase
+    const { data: variant, error: variantFetchError } = await supabase.from('productVariants').select('*, products(name)').eq('id', variantId).single();
+    if (variantFetchError) { console.error("Could not fetch variant for purchase record:", variantFetchError); return; }
+
+    const purchaseItem: Purchase['items'][0] = {
+        variantId: variant.id,
+        productId: variant.productId,
+        productName: (variant.products as any)?.name || 'Unknown',
+        variantName: variant.name,
+        quantity: quantity,
+        purchasePrice: purchasePrice
+    };
+
+    const totalAmount = quantity * purchasePrice;
+    await addPurchase({
+        storeId,
+        supplierId,
+        date: new Date().toISOString(),
+        items: [purchaseItem],
+        totalAmount: totalAmount,
+        amountPaid: totalAmount, // Assume fully paid
+        remainingAmount: 0,
+        paymentMethod: 'cash',
+        reference: 'purchase_ref_stock_adjustment'
+    });
+};
+
+
+// --- Sales & Returns ---
+
+export const completeSale = async (storeId: string, cart: CartItem[], downPayment: number, customerId: string | undefined, finalTotal: number, userId: string): Promise<Sale> => {
+    const total = finalTotal;
+    const profit = cart.reduce((acc, item) => {
+        const itemProfit = (item.price - (item.purchasePrice || 0)) * item.quantity;
+        return acc + (itemProfit > 0 ? itemProfit : 0);
+    }, 0);
+
+    const sale: Omit<Sale, 'id'> = {
+        storeId,
+        userId,
+        date: new Date().toISOString(),
+        items: cart,
+        total: total,
+        downPayment,
+        remainingAmount: Math.max(0, total - downPayment),
+        profit,
+        customerId
+    };
+    
+    // 1. Record the sale
+    const { data: saleData, error: saleError } = await supabase.from('sales').insert(sale).select().single();
+    if(saleError) throw saleError;
+    
+    // 2. Update stock
+    const stockUpdates: Omit<StockBatch, 'id'>[] = [];
+    cart.forEach(item => {
+        if(item.type === 'good') {
+            stockUpdates.push({
+                storeId,
+                variantId: item.id,
+                quantity: -item.quantity,
+                purchasePrice: item.purchasePrice || 0,
+                createdAt: new Date().toISOString()
+            });
+        }
+    });
+
+    if (stockUpdates.length > 0) {
+        const { error: stockError } = await supabase.from('stockBatches').insert(stockUpdates);
+        if(stockError) throw stockError;
+    }
+
+    return saleData;
+};
+
+export const processReturn = async (storeId: string, itemsToReturn: CartItem[], userId: string): Promise<Return> => {
+    const refundAmount = itemsToReturn.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    const profitLost = itemsToReturn.reduce((acc, item) => {
+        const itemProfit = (item.price - (item.purchasePrice || 0)) * item.quantity;
+        return acc + (itemProfit > 0 ? itemProfit : 0);
+    }, 0);
+    
+    const returnRecord: Omit<Return, 'id'> = {
+        storeId,
+        userId,
+        date: new Date().toISOString(),
+        items: itemsToReturn,
+        refundAmount,
+        profitLost,
+    };
+    
+    // 1. Record the return
+    const { data: returnData, error: returnError } = await supabase.from('returns').insert(returnRecord).select().single();
+    if (returnError) throw returnError;
+    
+    // 2. Update stock (add items back)
+    const stockUpdates: Omit<StockBatch, 'id'>[] = [];
+    itemsToReturn.forEach(item => {
+        if(item.type === 'good') {
+            stockUpdates.push({
+                storeId,
+                variantId: item.id,
+                quantity: item.quantity,
+                purchasePrice: item.purchasePrice || 0,
+                createdAt: new Date().toISOString()
+            });
+        }
+    });
+
+    if (stockUpdates.length > 0) {
+        const { error: stockError } = await supabase.from('stockBatches').insert(stockUpdates);
+        if(stockError) throw stockError;
+    }
+
+    return returnData;
+};
+
+export const deleteReturn = async (returnId: string) => {
+    await supabase.from('returns').delete().eq('id', returnId);
+};
+
+export const deleteAllReturns = async (storeId: string) => {
+    await supabase.from('returns').delete().eq('storeId', storeId);
+};
+
+export const payCustomerDebt = async (customerId: string, amount: number) => {
+    // This is a simplified implementation. A real system would create a payment transaction record.
+    // Here, we'll find the oldest debt and reduce it.
+    
+    let amountToApply = amount;
+    const { data: salesWithDebt, error } = await supabase
+        .from('sales')
+        .select('*')
+        .eq('customerId', customerId)
+        .gt('remainingAmount', 0)
+        .order('date', { ascending: true });
+
+    if(error) throw error;
+    
+    for (const sale of salesWithDebt) {
+        if (amountToApply <= 0) break;
+        
+        const payment = Math.min(amountToApply, sale.remainingAmount);
+        const newRemaining = sale.remainingAmount - payment;
+        
+        await supabase.from('sales').update({ remainingAmount: newRemaining }).eq('id', sale.id);
+        
+        amountToApply -= payment;
+    }
+};
+
+
+// --- Generic CRUD ---
+export const addExpense = async (expense: Omit<Expense, 'id'>): Promise<Expense | undefined> => {
+    const { data, error } = await supabase.from('expenses').insert(expense).select().single();
+    if(error) throw error;
+    return data;
+}
+export const updateExpense = async (expense: Expense) => {
+    await supabase.from('expenses').update(expense).eq('id', expense.id);
+}
+export const deleteExpense = async (id: string) => {
+    await supabase.from('expenses').delete().eq('id', id);
+}
+
+export const addCustomer = async (customer: Omit<Customer, 'id'>): Promise<Customer | undefined> => {
+     const { data, error } = await supabase.from('customers').insert(customer).select().single();
+     if(error) throw error;
+     return data;
+}
+export const deleteCustomer = async (id: string) => {
+    const { data: sales, error: salesError } = await supabase.from('sales').select('remainingAmount').eq('customerId', id);
+    if(salesError) throw salesError;
+    const totalDebt = sales.reduce((sum, s) => sum + s.remainingAmount, 0);
+    if(totalDebt > 0) {
+        throw new Error('customerDeleteErrorHasDebt');
+    }
+    await supabase.from('customers').delete().eq('id', id);
+}
+
+export const addSupplier = async (supplier: Omit<Supplier, 'id'>): Promise<Supplier | undefined> => {
+    const { data, error } = await supabase.from('suppliers').insert(supplier).select().single();
+    if(error) throw error;
+    return data;
+}
+export const deleteSupplier = async (id: string) => {
+    const { data: purchases, error: purchaseError } = await supabase.from('purchases').select('remainingAmount').eq('supplierId', id);
+    if (purchaseError) throw purchaseError;
+    const totalDebt = purchases.reduce((sum, p) => sum + p.remainingAmount, 0);
+    if (totalDebt > 0) {
+        throw new Error('supplierDeleteErrorHasDebt');
+    }
+    await supabase.from('suppliers').delete().eq('id', id);
+}
+
+export const addCategory = async (category: Omit<Category, 'id'>): Promise<Category | undefined> => {
+    const { data, error } = await supabase.from('categories').insert(category).select().single();
+    if(error) throw error;
+    return data;
+}
+export const updateCategory = async (category: Category) => {
+    await supabase.from('categories').update(category).eq('id', category.id);
+}
+export const deleteCategory = async (id: string) => {
+    const { data, error } = await supabase.from('products').select('id').eq('categoryId', id).limit(1);
+    if (error) throw error;
+    if (data.length > 0) {
+        throw new Error('categoryDeleteError');
+    }
+    await supabase.from('categories').delete().eq('id', id);
+}
+
+export const addPurchase = async (purchase: Omit<Purchase, 'id'>) => {
+    const { error: purchaseError } = await supabase.from('purchases').insert(purchase);
+    if (purchaseError) throw purchaseError;
+
+    // Add stock for each item in the purchase
+    const stockUpdates = purchase.items.map(item => ({
+        storeId: purchase.storeId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        purchasePrice: item.purchasePrice,
+        createdAt: purchase.date,
+    }));
+    const { error: stockError } = await supabase.from('stockBatches').insert(stockUpdates);
+    if (stockError) throw stockError;
+};
+
+export const updatePurchase = async (purchase: Purchase) => {
+    await supabase.from('purchases').update(purchase).eq('id', purchase.id);
+};
+
+export const deleteUser = async (id: string) => {
+    await supabase.from('users').delete().eq('id', id);
+};
+
+// --- Backup & Restore ---
+
+export const getDatabaseContents = async (): Promise<string> => {
+    const { data: store, error: storeError } = await supabase.from('stores').select('*').eq('id', (await getStoreIdFromLicense())!).single();
+    if (storeError) throw storeError;
+    
+    const allData = await getStoreData(store.id);
+    const allUsers = await getAllUsers();
+    
+    const backup = {
+      ...allData,
+      users: allUsers.filter(u => u.storeId === store.id),
+      stores: [store],
+      storeId: store.id
+    };
+    
+    return JSON.stringify(backup, null, 2);
+};
+
+const getStoreIdFromLicense = async (): Promise<string | null> => {
+    const license = localStorage.getItem('pos-license');
+    return license ? JSON.parse(license).storeId : null;
+};
+
+export const restoreDatabase = async (jsonContent: string): Promise<Store | null> => {
+    const backup = JSON.parse(jsonContent);
+
+    // 1. Basic Validation
+    const requiredTables: (keyof StoreTypeMap)[] = ['stores', 'users', 'products', 'productVariants', 'sales', 'expenses', 'returns', 'customers', 'suppliers', 'categories', 'purchases', 'stockBatches'];
+    const storeInfo = backup.stores?.find((s: Store) => s.id === backup.storeId);
+    if (!backup.storeId || !storeInfo || !requiredTables.every(table => Array.isArray(backup[table]))) {
+        throw new Error('restoreError');
+    }
+    const currentStoreId = backup.storeId;
+    
+    // 2. Data Sanitization & Remapping
+    const backupUserIds = new Set(backup.users.map((u: User) => u.id));
+    const adminUser = backup.users.find((u: User) => u.role === 'admin' && u.storeId === currentStoreId);
+
+    if (!adminUser) {
+        throw new Error('restoreError'); // No admin user found in backup for this store
+    }
+    const adminId = adminUser.id;
+
+    // If a sale/return was made by a user no longer in the backup, re-assign it to the admin.
+    const remappedSales = backup.sales.map((sale: Sale) => ({
+        ...sale,
+        // Cast `sale.userId` to string. Since `backup` is parsed from JSON, its properties are of type `any` or `unknown`.
+        // The `Set.has()` method expects a string, so we ensure the type is correct.
+        userId: backupUserIds.has(sale.userId as string) ? sale.userId : adminId,
+    }));
+    const remappedReturns = backup.returns.map((ret: Return) => ({
+        ...ret,
+        // Cast `ret.userId` to string for the same reason as above.
+        userId: backupUserIds.has(ret.userId as string) ? ret.userId : adminId,
+    }));
+    
+    // 3. Clear existing data for the store (in correct order to respect FK constraints)
+    const tablesToDeleteFrom: (keyof StoreTypeMap)[] = [
+        'returns', 'sales', 'stockBatches', 'purchases', 
+        'productVariants', 'products', 'customers', 
+        'suppliers', 'categories', 'users', 'expenses'
+    ];
+    for (const table of tablesToDeleteFrom) {
+        const { error } = await supabase.from(table).delete().eq('storeId', currentStoreId);
+        if (error) {
+            console.error(`Error clearing table ${table}:`, error);
+            throw new Error('restoreError');
+        }
+    }
+
+    // 4. Insert new data (in correct order)
+    const insertionOrder: (keyof StoreTypeMap)[] = [
+        'users', 'suppliers', 'categories', 'customers', 'products', 'productVariants', 
+        'stockBatches', 'purchases', 'expenses'
+    ];
+    
+    await supabase.from('stores').upsert(storeInfo);
+
+    for (const table of insertionOrder) {
+        const dataToInsert = backup[table];
+        if (dataToInsert && dataToInsert.length > 0) {
+            const { error } = await supabase.from(table).insert(dataToInsert);
+            if (error) {
+                console.error(`Error restoring table ${table}:`, error);
+                throw new Error('restoreError');
+            }
+        }
+    }
+    
+    // Insert remapped sales and returns separately
+    if (remappedSales?.length) {
+        const { error } = await supabase.from('sales').insert(remappedSales);
+        if(error) { console.error('Error restoring sales:', error); throw new Error('restoreError'); }
+    }
+    if (remappedReturns?.length) {
+        const { error } = await supabase.from('returns').insert(remappedReturns);
+        if(error) { console.error('Error restoring returns:', error); throw new Error('restoreError'); }
+    }
+
+    return storeInfo || null;
+};

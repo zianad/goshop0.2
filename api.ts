@@ -135,12 +135,7 @@ export async function verifyAndActivateStoreWithCode(storeId: string, activation
     return false;
 }
 
-export async function login(storeId: string, secret: string): Promise<{ user: User, store: Store }> {
-    const { data: store, error: storeError } = await supabase.from('stores').select('*').eq('id', storeId).single();
-    if (storeError || !store) {
-        throw new Error('storeNotFound');
-    }
-    
+export async function login(store: Store, secret: string): Promise<{ user: User, store: Store }> {
     if (!store.isActive) {
         throw new Error('storeDisabledError');
     }
@@ -149,7 +144,7 @@ export async function login(storeId: string, secret: string): Promise<{ user: Us
     let { data: user, error } = await supabase
         .from('users')
         .select('*')
-        .eq('storeId', storeId)
+        .eq('storeId', store.id)
         .eq('role', 'admin')
         .eq('password', secret)
         .single();
@@ -159,7 +154,7 @@ export async function login(storeId: string, secret: string): Promise<{ user: Us
         const { data: sellerUser, error: sellerError } = await supabase
             .from('users')
             .select('*')
-            .eq('storeId', storeId)
+            .eq('storeId', store.id)
             .eq('role', 'seller')
             .eq('pin', secret)
             .single();
