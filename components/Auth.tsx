@@ -213,7 +213,14 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onSuperAdminLogin, t, langu
                 setError(t('invalidActivationCode'));
             }
         } catch (err: any) {
-            setError(t('unknownError'));
+            console.error("Error activating store for the first time:", err);
+            // The 406 error from Supabase during activation due to RLS policies is not a user-fixable error.
+            // Show a user-friendly message that prompts them to check the key.
+            if (err.message?.includes('406')) {
+                 setError(t('invalidActivationCode'));
+            } else {
+                setError(t('unknownError'));
+            }
         } finally {
             setIsLoading(false);
         }

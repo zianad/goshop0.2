@@ -43,7 +43,7 @@ export async function getStoreByLicenseKey(licenseKey: string): Promise<Store | 
 
     if (originalError) {
         console.error('Error fetching store with original key:', originalError);
-        return null; // A real DB error occurred
+        throw originalError;
     }
     
     if (originalData && originalData.length > 0) {
@@ -62,7 +62,7 @@ export async function getStoreByLicenseKey(licenseKey: string): Promise<Store | 
 
         if (prefixedError) {
             console.error('Error fetching store with prefixed key:', prefixedError);
-            return null; // A real DB error occurred
+            throw prefixedError;
         }
         
         if (prefixedData && prefixedData.length > 0) {
@@ -77,28 +77,40 @@ export async function getStoreByLicenseKey(licenseKey: string): Promise<Store | 
     
     // Now that we have found the store data, handle the activation logic.
     if (!storeData.trialStartDate) {
-        // First time activation. Update the store to set it as active and start the trial.
-        const { error: updateError } = await supabase
-            .from('stores')
-            .update({ 
-                isActive: true, 
-                trialStartDate: new Date().toISOString(),
-             })
-            .eq('id', storeData.id);
-        
-        if (updateError) {
-            console.error('Error during store activation update:', updateError);
-            // If the update fails, we cannot proceed.
-            return null;
-        }
+        // First time activation. Update the store.
+        // Use .then() to avoid the client requesting the updated row back (return=minimal),
+        // which can cause a 406 error if RLS policies prevent the anon user
+        // from SELECTing the row after it has been updated.
+        const updatePromise = new Promise<void>((resolve, reject) => {
+            supabase
+                .from('stores')
+                .update({ 
+                    isActive: true, 
+                    trialStartDate: new Date().toISOString(),
+                })
+                .eq('id', storeData!.id)
+                .then(({ error: updateError }) => {
+                    if (updateError) {
+                        console.error('Error during store activation update:', updateError);
+                        reject(updateError);
+                    } else {
+                        resolve();
+                    }
+                });
+        });
 
-        // Since the update was successful, we can confidently return the updated store object.
-        // We construct it optimistically to avoid another network call or select() issues.
-        return {
-            ...storeData,
-            isActive: true,
-            trialStartDate: new Date().toISOString(),
-        };
+        try {
+            await updatePromise;
+            // If the update succeeds, optimistically return the updated store object.
+            return {
+                ...storeData,
+                isActive: true,
+                trialStartDate: new Date().toISOString(),
+            };
+        } catch (updateError) {
+            // Rethrow the error to be handled by the Auth component
+            throw updateError;
+        }
     }
 
     return storeData;

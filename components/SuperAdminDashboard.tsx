@@ -417,7 +417,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
                                                     <button 
                                                         type="button" 
                                                         onClick={() => handleCopy(store.licenseKey, store.id)} 
-                                                        className="text-sm font-semibold text-teal-600 dark:text-teal-400 hover:underline"
+                                                        className="bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 hover:bg-teal-200 dark:hover:bg-teal-800/50 text-xs font-bold py-1 px-2 rounded-md"
                                                     >
                                                         {copiedIdentifier === store.id ? t('copied') : t('copy')}
                                                     </button>
