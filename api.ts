@@ -77,21 +77,28 @@ export async function getStoreByLicenseKey(licenseKey: string): Promise<Store | 
     
     // Now that we have found the store data, handle the activation logic.
     if (!storeData.trialStartDate) {
-        const { data: updatedStore, error: updateError } = await supabase
+        // First time activation. Update the store to set it as active and start the trial.
+        const { error: updateError } = await supabase
             .from('stores')
             .update({ 
                 isActive: true, 
                 trialStartDate: new Date().toISOString(),
              })
-            .eq('id', storeData.id)
-            .select()
-            .single();
+            .eq('id', storeData.id);
         
         if (updateError) {
-            console.error('Error activating store for the first time:', updateError);
+            console.error('Error during store activation update:', updateError);
+            // If the update fails, we cannot proceed.
             return null;
         }
-        return updatedStore;
+
+        // Since the update was successful, we can confidently return the updated store object.
+        // We construct it optimistically to avoid another network call or select() issues.
+        return {
+            ...storeData,
+            isActive: true,
+            trialStartDate: new Date().toISOString(),
+        };
     }
 
     return storeData;
