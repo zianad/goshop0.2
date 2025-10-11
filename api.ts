@@ -31,37 +31,60 @@ export async function clearCartFromDB(storeId: string, userId: string): Promise<
 
 
 export async function getStoreByLicenseKey(licenseKey: string): Promise<Store | null> {
-    const { data, error } = await supabase.from('stores').select('*').eq('licenseKey', licenseKey).single();
-    if (error) {
-        console.error('Error fetching store by license key:', error);
+    const originalKey = licenseKey.trim();
+
+    let storeData: Store | null = null;
+    
+    // Attempt 1: Try the key as entered by the user.
+    const { data: originalData, error: originalError } = await supabase.from('stores').select('*').eq('licenseKey', originalKey).single();
+    
+    if (originalData) {
+        storeData = originalData;
+    } else if (originalError && originalError.code !== 'PGRST116') {
+        // If there was a real DB error, log it and fail.
+        console.error('Error fetching store with original key:', originalError);
         return null;
     }
 
-    // This logic handles the very first time a license is used for a store.
-    // It sets the trial start date and activates it.
-    if (data && !data.trialStartDate) {
+    // Attempt 2: If not found and prefix is missing, try adding the prefix.
+    if (!storeData && !originalKey.toUpperCase().startsWith('LK-')) {
+        const prefixedKey = `LK-${originalKey}`;
+        const { data: prefixedData, error: prefixedError } = await supabase.from('stores').select('*').eq('licenseKey', prefixedKey).single();
+
+        if (prefixedData) {
+            storeData = prefixedData;
+        } else if (prefixedError && prefixedError.code !== 'PGRST116') {
+            // If there was a real DB error on the second try, log it and fail.
+            console.error('Error fetching store with prefixed key:', prefixedError);
+            return null;
+        }
+    }
+
+    // If no store was found after all attempts, return null.
+    if (!storeData) {
+        return null;
+    }
+    
+    // Now that we have found the store data, handle the activation logic.
+    if (!storeData.trialStartDate) {
         const { data: updatedStore, error: updateError } = await supabase
             .from('stores')
             .update({ 
                 isActive: true, 
                 trialStartDate: new Date().toISOString(),
              })
-            .eq('id', data.id)
+            .eq('id', storeData.id)
             .select()
             .single();
         
         if (updateError) {
             console.error('Error activating store for the first time:', updateError);
-            // If activation fails, something is wrong, don't proceed.
             return null;
         }
-        // Return the fresh, activated store object to prevent stale state issues.
         return updatedStore;
     }
 
-    // If the store was already activated before (even on another device),
-    // just return its current data. The login function will check its active status.
-    return data;
+    return storeData;
 }
 
 export async function getStoreById(storeId: string): Promise<Store | null> {
@@ -644,7 +667,6 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
     }));
     const remappedReturns = backup.returns.map((ret: Return) => ({
         ...ret,
-        // Cast `ret.userId` to string for the same reason as above.
         // Cast `ret.userId` to string for the same reason as above.
         userId: backupUserIds.has(ret.userId as string) ? ret.userId : adminId,
     }));
