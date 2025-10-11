@@ -32,31 +32,41 @@ export async function clearCartFromDB(storeId: string, userId: string): Promise<
 
 export async function getStoreByLicenseKey(licenseKey: string): Promise<Store | null> {
     const originalKey = licenseKey.trim();
-
     let storeData: Store | null = null;
     
-    // Attempt 1: Try the key as entered by the user.
-    const { data: originalData, error: originalError } = await supabase.from('stores').select('*').eq('licenseKey', originalKey).single();
-    
-    if (originalData) {
-        storeData = originalData;
-    } else if (originalError && originalError.code !== 'PGRST116') {
-        // If there was a real DB error, log it and fail.
+    // Attempt 1: Try the key as entered by the user. Use array select instead of .single() to avoid 406.
+    const { data: originalData, error: originalError } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('licenseKey', originalKey)
+        .limit(1);
+
+    if (originalError) {
         console.error('Error fetching store with original key:', originalError);
-        return null;
+        return null; // A real DB error occurred
     }
+    
+    if (originalData && originalData.length > 0) {
+        storeData = originalData[0];
+    }
+
 
     // Attempt 2: If not found and prefix is missing, try adding the prefix.
     if (!storeData && !originalKey.toUpperCase().startsWith('LK-')) {
         const prefixedKey = `LK-${originalKey}`;
-        const { data: prefixedData, error: prefixedError } = await supabase.from('stores').select('*').eq('licenseKey', prefixedKey).single();
+        const { data: prefixedData, error: prefixedError } = await supabase
+            .from('stores')
+            .select('*')
+            .eq('licenseKey', prefixedKey)
+            .limit(1);
 
-        if (prefixedData) {
-            storeData = prefixedData;
-        } else if (prefixedError && prefixedError.code !== 'PGRST116') {
-            // If there was a real DB error on the second try, log it and fail.
+        if (prefixedError) {
             console.error('Error fetching store with prefixed key:', prefixedError);
-            return null;
+            return null; // A real DB error occurred
+        }
+        
+        if (prefixedData && prefixedData.length > 0) {
+            storeData = prefixedData[0];
         }
     }
 
