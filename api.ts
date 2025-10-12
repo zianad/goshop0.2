@@ -610,11 +610,20 @@ const getStoreIdFromLicense = async (): Promise<string | null> => {
 export const restoreDatabase = async (jsonContent: string): Promise<Store | null> => {
     let backup;
     try {
+        // First, try parsing as-is (for raw JSON)
         backup = JSON.parse(jsonContent);
     } catch (e) {
-        console.error("JSON parsing failed:", e);
-        throw new Error('jsonParseError');
+        // If it fails, it might be Base64 encoded.
+        try {
+            const decodedContent = atob(jsonContent);
+            backup = JSON.parse(decodedContent);
+        } catch (decodeError) {
+            // If decoding also fails, then the file is truly corrupt.
+            console.error("JSON parsing and Base64 decoding both failed:", decodeError);
+            throw new Error('restoreError');
+        }
     }
+
 
     if (!backup || typeof backup !== 'object') {
         throw new Error('restoreError');
@@ -653,8 +662,6 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
     const adminId = adminUser.id;
 
     // If a sale/return was made by a user no longer in the backup, re-assign it to the admin.
-    // FIX: Add a type guard to ensure userId is a string before using it in `Set.has()`,
-    // as data from JSON.parse is not fully trusted by the type checker.
     const remappedSales = backup.sales.map((sale: Sale) => ({
         ...sale,
         userId: (typeof sale.userId === 'string' && backupUserIds.has(sale.userId)) ? sale.userId : adminId,
@@ -670,7 +677,6 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
         'productVariants', 'products', 'customers', 
         'suppliers', 'categories', 'users', 'expenses'
     ];
-    // Fix: Add a type guard to ensure currentStoreId is a string before using it.
     if (typeof currentStoreId !== 'string') {
         throw new Error('restoreError');
     }
