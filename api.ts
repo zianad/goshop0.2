@@ -609,14 +609,18 @@ const getStoreIdFromLicense = async (): Promise<string | null> => {
 
 export const restoreDatabase = async (jsonContent: string): Promise<Store | null> => {
     let backup;
-    let contentToParse = jsonContent;
+    let contentToParse = jsonContent.trim(); // Trim whitespace from the start and end
 
     // Regex to find and replace both "image" and "logo" data URIs
     const imageAndLogoRegex = /"(image|logo)":\s*"data:image[^"]*"/g;
+    
+    // This regex will replace "image": null or "logo": null with "image": "" or "logo": ""
+    const nullImageRegex = /"(image|logo)":\s*null/g;
 
     try {
         // First, try parsing after sanitizing (for raw JSON)
         let sanitizedContent = contentToParse.replace(imageAndLogoRegex, '"$1": ""');
+        sanitizedContent = sanitizedContent.replace(nullImageRegex, '"$1": ""');
         backup = JSON.parse(sanitizedContent);
     } catch (e) {
         // If it fails, it might be Base64 encoded.
@@ -624,6 +628,7 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
             const decodedContent = atob(contentToParse);
             // Also sanitize the decoded content
             let sanitizedDecodedContent = decodedContent.replace(imageAndLogoRegex, '"$1": ""');
+            sanitizedDecodedContent = sanitizedDecodedContent.replace(nullImageRegex, '"$1": ""');
             backup = JSON.parse(sanitizedDecodedContent);
         } catch (decodeError) {
             // If all parsing attempts fail, the file is likely corrupt.
