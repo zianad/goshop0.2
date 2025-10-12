@@ -611,11 +611,20 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
     const backup = JSON.parse(jsonContent);
 
     // 1. Basic Validation
-    const requiredTables: (keyof StoreTypeMap)[] = ['stores', 'users', 'products', 'productVariants', 'sales', 'expenses', 'returns', 'customers', 'suppliers', 'categories', 'purchases', 'stockBatches'];
     const storeInfo = backup.stores?.find((s: Store) => s.id === backup.storeId);
-    if (!backup.storeId || !storeInfo || !requiredTables.every(table => Array.isArray(backup[table]))) {
+    if (!backup.storeId || !storeInfo) {
         throw new Error('restoreError');
     }
+
+    // NEW: Make validation flexible.
+    // Ensure all expected tables are at least initialized as empty arrays if they are missing.
+    const allPossibleTables: (keyof StoreTypeMap)[] = ['stores', 'users', 'products', 'productVariants', 'sales', 'expenses', 'returns', 'customers', 'suppliers', 'categories', 'purchases', 'stockBatches'];
+    for (const table of allPossibleTables) {
+        if (!Array.isArray(backup[table])) {
+            backup[table] = []; // If a table is missing, treat it as empty.
+        }
+    }
+
     const currentStoreId = backup.storeId;
     
     // 2. Data Sanitization & Remapping
