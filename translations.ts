@@ -104,6 +104,7 @@ export const translations = {
     activationSuccessReload: "Activation réussie ! L'application va redémarrer.",
     activationCode: "Code d'activation",
     permanentActivationCode: "Code d'activation permanent",
+    failedToFetchError_CORS: "La requête réseau a échoué. Cela peut être dû à un problème de CORS (assurez-vous que 'zianad.github.io' est autorisé dans les paramètres API de Supabase), à une extension de navigateur (comme un bloqueur de publicités) ou à un problème de connexion internet. Veuillez vérifier ces points et réessayer.",
 
 
     // Tabs
@@ -170,6 +171,10 @@ export const translations = {
     aiScanFeatureDescription: "Activer la fonctionnalité d'ajout d'articles par scan de reçu via IA.",
     useThisToLoginFirst: "Utilisez cette clé sur l'écran d'activation initial pour accéder au magasin.",
     useThisPasswordAfter: "Après avoir utilisé la clé de licence, utilisez ce mot de passe sur l'écran de connexion du magasin.",
+    activateImmediately: 'Activer immédiatement',
+    activateImmediatelyDesc: 'Le magasin sera actif et prêt à l\'emploi dès sa création.',
+    activeOnCreation: 'Activé à la création',
+    inactiveOnCreation: 'Inactif à la création',
 
     // Main App & Header
     adminDashboard: 'Tableau de bord admin',
@@ -604,6 +609,7 @@ export const translations = {
     activationSuccessReload: "تم التفعيل بنجاح! سيتم إعادة تشغيل التطبيق.",
     activationCode: "رمز التفعيل",
     permanentActivationCode: "رمز التفعيل الدائم",
+    failedToFetchError_CORS: "فشل طلب الشبكة. قد يكون هذا بسبب مشكلة في إعدادات CORS (تأكد من أن 'zianad.github.io' مسموح به في إعدادات API في Supabase)، أو بسبب إضافة في المتصفح (مثل مانع الإعلانات)، أو مشكلة في الاتصال بالإنترنت. يرجى التحقق من هذه النقاط والمحاولة مرة أخرى.",
 
 
     // Tabs
@@ -670,6 +676,11 @@ export const translations = {
     aiScanFeatureDescription: "تفعيل ميزة إضافة المنتجات عبر مسح الإيصالات بالذكاء الاصطناعي.",
     useThisToLoginFirst: "استخدم هذا المفتاح في شاشة التفعيل الأولية للوصول إلى المتجر.",
     useThisPasswordAfter: "بعد استخدام مفتاح الترخيص، استخدم كلمة المرور هذه في شاشة تسجيل الدخول الخاصة بالمتجر.",
+    activateImmediately: 'تفعيل فوري',
+    activateImmediatelyDesc: 'سيكون المتجر نشطًا وجاهزًا للاستخدام فور إنشائه.',
+    activeOnCreation: 'مفعّل عند الإنشاء',
+    inactiveOnCreation: 'غير مفعّل عند الإنشاء',
+
 
     // Main App & Header
     adminDashboard: 'لوحة تحكم المدير',

@@ -107,6 +107,7 @@ const MainApp: React.FC<{
             await handleUpdateStore({
                 isActive: true,
                 trialStartDate: new Date().toISOString(),
+                licenseProof: new Date().toISOString(), // This proves activation happened
             });
         };
         activateStore();

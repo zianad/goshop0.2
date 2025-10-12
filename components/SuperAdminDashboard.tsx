@@ -38,6 +38,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
     const [users, setUsers] = useState<User[]>([]);
     
     const [newStore, setNewStore] = useState({ name: '', adminEmail: '', adminPassword: '', logo: '', trialDurationDays: 7, address: '', ice: '', enableAiReceiptScan: false });
+    const [activateImmediately, setActivateImmediately] = useState(true);
     const [editingCredentials, setEditingCredentials] = useState<{ [userId: string]: string }>({});
     const [newSellerPins, setNewSellerPins] = useState<{ [storeId: string]: string }>({});
     const [lastGeneratedKey, setLastGeneratedKey] = useState<string | null>(null);
@@ -91,9 +92,23 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
 
         try {
             const { licenseKey } = await api.createStoreAndAdmin(newStore.name, newStore.logo, newStore.adminPassword, newStore.adminEmail, newStore.trialDurationDays, newStore.address, newStore.ice, newStore.enableAiReceiptScan);
+            
+            if (activateImmediately) {
+                const newStoreObject = await api.getStoreByLicenseKey(licenseKey);
+                if (newStoreObject) {
+                    await api.updateStore({
+                        ...newStoreObject,
+                        isActive: true,
+                        trialStartDate: new Date().toISOString(),
+                        licenseProof: new Date().toISOString(),
+                    });
+                }
+            }
+            
             setLastGeneratedKey(licenseKey);
             setLastGeneratedPassword(adminPassword);
             setNewStore({ name: '', adminEmail: '', adminPassword: '', logo: '', trialDurationDays: 7, address: '', ice: '', enableAiReceiptScan: false });
+            setActivateImmediately(true);
             const fileInput = document.getElementById('logo') as HTMLInputElement;
             if(fileInput) fileInput.value = '';
             await fetchData();
@@ -344,20 +359,42 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('ice')} ({t('optional')})</label>
                                 <input type="text" value={newStore.ice} onChange={e => setNewStore({...newStore, ice: e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" />
                             </div>
-                             <div className="lg:col-span-3 flex items-center gap-4 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                                 <SparklesIcon className="w-8 h-8 text-purple-500 dark:text-purple-400" />
-                                 <div>
-                                    <h4 className="font-bold text-slate-700 dark:text-slate-200">{t('enableAiScan')}</h4>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('aiScanFeatureDescription')}</p>
-                                 </div>
-                                <div className="ml-auto rtl:ml-0 rtl:mr-auto">
-                                    <ToggleSwitch
-                                        checked={newStore.enableAiReceiptScan}
-                                        onChange={() => setNewStore(prev => ({...prev, enableAiReceiptScan: !prev.enableAiReceiptScan}))}
-                                        labelOn={t('aiScanEnabled')}
-                                        labelOff={t('aiScanDisabled')}
-                                        title={t('enableAiScan')}
-                                    />
+                            <div className="lg:col-span-3 space-y-3">
+                                <div className="flex items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                        <SparklesIcon className="w-8 h-8 text-purple-500 dark:text-purple-400" />
+                                        <div>
+                                            <h4 className="font-bold text-slate-700 dark:text-slate-200">{t('enableAiScan')}</h4>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">{t('aiScanFeatureDescription')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="ml-auto rtl:ml-0 rtl:mr-auto">
+                                        <ToggleSwitch
+                                            checked={newStore.enableAiReceiptScan}
+                                            onChange={() => setNewStore(prev => ({...prev, enableAiReceiptScan: !prev.enableAiReceiptScan}))}
+                                            labelOn={t('aiScanEnabled')}
+                                            labelOff={t('aiScanDisabled')}
+                                            title={t('enableAiScan')}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between gap-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                        <KeyIcon className="w-8 h-8 text-blue-500 dark:text-blue-400" />
+                                        <div>
+                                            <h4 className="font-bold text-slate-700 dark:text-slate-200">{t('activateImmediately')}</h4>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">{t('activateImmediatelyDesc')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="ml-auto rtl:ml-0 rtl:mr-auto">
+                                        <ToggleSwitch
+                                            checked={activateImmediately}
+                                            onChange={() => setActivateImmediately(prev => !prev)}
+                                            labelOn={t('activeOnCreation')}
+                                            labelOff={t('inactiveOnCreation')}
+                                            title={t('activateImmediately')}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
