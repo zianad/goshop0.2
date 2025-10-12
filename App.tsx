@@ -98,11 +98,12 @@ const MainApp: React.FC<{
   const cartLoadedRef = useRef(false);
 
   // This effect handles the initial activation of the store after the first successful login.
+  // It only runs if the store has no `licenseProof`, indicating it's the very first time it's being used.
   useEffect(() => {
-    // If the store object is present but the trial hasn't started, it means this is the first login.
-    if (store && !store.trialStartDate) {
+    // If the store object is present but has no license proof, it's a first-time activation.
+    if (store && !store.licenseProof) {
         const activateStore = async () => {
-            console.log('First login detected. Activating store in database...');
+            console.log('First login detected (no license proof). Activating store in database...');
             // The handleUpdateStore function is authenticated and will succeed.
             await handleUpdateStore({
                 isActive: true,
