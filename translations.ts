@@ -104,7 +104,7 @@ export const translations = {
     activationSuccessReload: "Activation réussie ! L'application va redémarrer.",
     activationCode: "Code d'activation",
     permanentActivationCode: "Code d'activation permanent",
-    failedToFetchError_CORS: "La requête réseau a échoué. Cela peut être dû à un problème de CORS (assurez-vous que 'zianad.github.io' est autorisé dans les paramètres API de Supabase), à une extension de navigateur (comme un bloqueur de publicités) ou à un problème de connexion internet. Veuillez vérifier ces points et réessayer.",
+    failedToFetchError_CORS: "La requête réseau a échoué. Causes possibles : 1) Votre projet Supabase est en pause (réactivez-le sur le tableau de bord Supabase). 2) Problème de CORS (vérifiez les origines autorisées dans les paramètres API de Supabase). 3) Bloqueur de publicités ou problème de réseau. Veuillez vérifier ces points et réessayer.",
 
 
     // Tabs
@@ -609,7 +609,7 @@ export const translations = {
     activationSuccessReload: "تم التفعيل بنجاح! سيتم إعادة تشغيل التطبيق.",
     activationCode: "رمز التفعيل",
     permanentActivationCode: "رمز التفعيل الدائم",
-    failedToFetchError_CORS: "فشل طلب الشبكة. قد يكون هذا بسبب مشكلة في إعدادات CORS (تأكد من أن 'zianad.github.io' مسموح به في إعدادات API في Supabase)، أو بسبب إضافة في المتصفح (مثل مانع الإعلانات)، أو مشكلة في الاتصال بالإنترنت. يرجى التحقق من هذه النقاط والمحاولة مرة أخرى.",
+    failedToFetchError_CORS: "فشل طلب الشبكة. الأسباب المحتملة: 1) مشروع Supabase الخاص بك متوقف مؤقتًا (أعد تنشيطه من لوحة التحكم). 2) مشكلة في إعدادات CORS (تحقق من النطاقات المسموح بها في إعدادات API). 3) مانع إعلانات أو مشكلة في الشبكة. يرجى التحقق من هذه النقاط والمحاولة مرة أخرى.",
 
 
     // Tabs
