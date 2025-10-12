@@ -201,8 +201,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ storeId, users, addUser
                         throw new Error('restoreError');
                     }
                 } catch (err: any) {
-                    const errorMessageKey = (err.message || 'restoreError') as keyof typeof translations.fr;
-                    alert(t(errorMessageKey in translations.fr ? errorMessageKey : 'restoreError'));
+                    if (err.message === 'jsonParseError') {
+                        alert(t('jsonParseError'));
+                    } else {
+                        const errorMessageKey = (err.message || 'restoreError') as keyof typeof translations.fr;
+                        alert(t(errorMessageKey in translations.fr ? errorMessageKey : 'restoreError'));
+                    }
                 }
             }
         };
@@ -227,8 +231,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ storeId, users, addUser
                 throw new Error('restoreError');
             }
         } catch (err: any) {
-            const errorMessageKey = (err.message || 'restoreError') as keyof typeof translations.fr;
-            alert(t(errorMessageKey in translations.fr ? errorMessageKey : 'restoreError'));
+            if (err.message === 'jsonParseError') {
+                alert(t('jsonParseError'));
+            } else {
+                const errorMessageKey = (err.message || 'restoreError') as keyof typeof translations.fr;
+                alert(t(errorMessageKey in translations.fr ? errorMessageKey : 'restoreError'));
+            }
         }
     }
   };

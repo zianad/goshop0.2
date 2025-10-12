@@ -613,7 +613,7 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
         backup = JSON.parse(jsonContent);
     } catch (e) {
         console.error("JSON parsing failed:", e);
-        throw new Error('restoreError');
+        throw new Error('jsonParseError');
     }
 
     if (!backup || typeof backup !== 'object') {
