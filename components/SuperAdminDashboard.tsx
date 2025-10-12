@@ -89,18 +89,23 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
         }
 
         const adminPassword = newStore.adminPassword;
+        const trialDays = newStore.trialDurationDays || 0;
 
         try {
-            const { licenseKey } = await api.createStoreAndAdmin(newStore.name, newStore.logo, newStore.adminPassword, newStore.adminEmail, newStore.trialDurationDays, newStore.address, newStore.ice, newStore.enableAiReceiptScan);
+            const { licenseKey } = await api.createStoreAndAdmin(newStore.name, newStore.logo, newStore.adminPassword, newStore.adminEmail, trialDays, newStore.address, newStore.ice, newStore.enableAiReceiptScan);
             
             if (activateImmediately) {
                 const newStoreObject = await api.getStoreByLicenseKey(licenseKey);
                 if (newStoreObject) {
+                    const updatePayload: Partial<Store> = {
+                        isActive: true,
+                        licenseProof: new Date().toISOString(),
+                        // If trial days is 0, grant a permanent license by setting trialStartDate to null
+                        trialStartDate: trialDays > 0 ? new Date().toISOString() : null,
+                    };
                     await api.updateStore({
                         ...newStoreObject,
-                        isActive: true,
-                        trialStartDate: new Date().toISOString(),
-                        licenseProof: new Date().toISOString(),
+                        ...updatePayload
                     });
                 }
             }
