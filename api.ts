@@ -608,26 +608,42 @@ const getStoreIdFromLicense = async (): Promise<string | null> => {
 };
 
 export const restoreDatabase = async (jsonContent: string): Promise<Store | null> => {
-    const backup = JSON.parse(jsonContent);
-
-    // 1. Basic Validation
-    const storeInfo = backup.stores?.find((s: Store) => s.id === backup.storeId);
-    if (!backup.storeId || !storeInfo) {
+    let backup;
+    try {
+        backup = JSON.parse(jsonContent);
+    } catch (e) {
+        console.error("JSON parsing failed:", e);
         throw new Error('restoreError');
     }
 
-    // NEW: Make validation flexible.
-    // Ensure all expected tables are at least initialized as empty arrays if they are missing.
+    if (!backup || typeof backup !== 'object') {
+        throw new Error('restoreError');
+    }
+
+    // 1. More Robust Validation & storeId inference for backward compatibility
+    let currentStoreId: string | undefined = backup.storeId;
+    if (!currentStoreId) {
+        if (Array.isArray(backup.stores) && backup.stores.length === 1 && backup.stores[0].id) {
+            currentStoreId = backup.stores[0].id;
+        } else {
+            throw new Error('restoreError');
+        }
+    }
+    
+    const storeInfo = backup.stores?.find((s: Store) => s.id === currentStoreId);
+    if (!storeInfo) {
+        throw new Error('restoreError');
+    }
+
+    // 2. Make table validation flexible for backward compatibility
     const allPossibleTables: (keyof StoreTypeMap)[] = ['stores', 'users', 'products', 'productVariants', 'sales', 'expenses', 'returns', 'customers', 'suppliers', 'categories', 'purchases', 'stockBatches'];
     for (const table of allPossibleTables) {
         if (!Array.isArray(backup[table])) {
             backup[table] = []; // If a table is missing, treat it as empty.
         }
     }
-
-    const currentStoreId = backup.storeId;
     
-    // 2. Data Sanitization & Remapping
+    // 3. Data Sanitization & Remapping
     const backupUserIds = new Set(backup.users.map((u: User) => u.id));
     const adminUser = backup.users.find((u: User) => u.role === 'admin' && u.storeId === currentStoreId);
 
@@ -646,7 +662,7 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
         userId: backupUserIds.has(ret.userId as string) ? ret.userId : adminId,
     }));
     
-    // 3. Clear existing data for the store (in correct order to respect FK constraints)
+    // 4. Clear existing data for the store (in correct order to respect FK constraints)
     const tablesToDeleteFrom: (keyof StoreTypeMap)[] = [
         'returns', 'sales', 'stockBatches', 'purchases', 
         'productVariants', 'products', 'customers', 
@@ -660,7 +676,7 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
         }
     }
 
-    // 4. Insert new data (in correct order)
+    // 5. Insert new data (in correct order)
     const insertionOrder: (keyof StoreTypeMap)[] = [
         'users', 'suppliers', 'categories', 'customers', 'products', 'productVariants', 
         'stockBatches', 'purchases', 'expenses'
