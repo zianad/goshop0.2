@@ -33,10 +33,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ storeId, users, addUser
   const [storeIce, setStoreIce] = useState(store.ice || '');
   const [storeLogo, setStoreLogo] = useState(store.logo || '');
   const [logoPreview, setLogoPreview] = useState(store.logo || '');
-  const [restoreText, setRestoreText] = useState('');
 
 
   const restoreInputRef = useRef<HTMLInputElement>(null);
+  const restoreTextRef = useRef<HTMLTextAreaElement>(null);
 
   const clearFeedback = () => setTimeout(() => setFeedback(null), 4000);
 
@@ -216,7 +216,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ storeId, users, addUser
   };
   
   const handleRestoreFromText = async () => {
-    if (!restoreText.trim()) {
+    const restoreText = restoreTextRef.current?.value;
+    if (!restoreText || !restoreText.trim()) {
         alert(t('pasteBackupContent'));
         return;
     }
@@ -385,8 +386,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ storeId, users, addUser
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('restoreFromTextDescription')}</p>
             
             <textarea
-                value={restoreText}
-                onChange={(e) => setRestoreText(e.target.value)}
+                ref={restoreTextRef}
                 placeholder={t('pasteBackupContent')}
                 className="w-full h-48 p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600 font-mono text-xs"
                 aria-label={t('pasteBackupContent')}
@@ -394,8 +394,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ storeId, users, addUser
             
             <button
                 onClick={handleRestoreFromText}
-                className="mt-4 bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors inline-flex items-center gap-2 disabled:bg-gray-400 dark:disabled:bg-slate-600"
-                disabled={!restoreText.trim()}
+                className="mt-4 bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors inline-flex items-center gap-2"
             >
                 <UploadIcon className="w-5 h-5" />
                 {t('restoreFromText')}

@@ -116,21 +116,21 @@ export async function login(store: Store, secret: string): Promise<{ user: User,
 }
 
 export async function getAllStores(): Promise<Store[]> {
-    const { data, error } = await supabase.from('stores').select('*');
+    const { data, error } = await supabase.rpc('get_all_stores');
     if (error) {
         console.error('Error fetching stores:', error);
         return [];
     }
-    return data;
+    return data || [];
 }
 
 export async function getAllUsers(): Promise<User[]> {
-    const { data, error } = await supabase.from('users').select('*');
+    const { data, error } = await supabase.rpc('get_all_users');
     if (error) {
         console.error('Error fetching users:', error);
         return [];
     }
-    return data;
+    return data || [];
 }
 
 export async function getAdminUserForStore(storeId: string): Promise<User | null> {
@@ -653,13 +653,15 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
     const adminId = adminUser.id;
 
     // If a sale/return was made by a user no longer in the backup, re-assign it to the admin.
+    // FIX: Add a type guard to ensure userId is a string before using it in `Set.has()`,
+    // as data from JSON.parse is not fully trusted by the type checker.
     const remappedSales = backup.sales.map((sale: Sale) => ({
         ...sale,
-        userId: backupUserIds.has(sale.userId as string) ? sale.userId : adminId,
+        userId: (typeof sale.userId === 'string' && backupUserIds.has(sale.userId)) ? sale.userId : adminId,
     }));
     const remappedReturns = backup.returns.map((ret: Return) => ({
         ...ret,
-        userId: backupUserIds.has(ret.userId as string) ? ret.userId : adminId,
+        userId: (typeof ret.userId === 'string' && backupUserIds.has(ret.userId)) ? ret.userId : adminId,
     }));
     
     // 4. Clear existing data for the store (in correct order to respect FK constraints)
@@ -668,6 +670,10 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
         'productVariants', 'products', 'customers', 
         'suppliers', 'categories', 'users', 'expenses'
     ];
+    // Fix: Add a type guard to ensure currentStoreId is a string before using it.
+    if (typeof currentStoreId !== 'string') {
+        throw new Error('restoreError');
+    }
     for (const table of tablesToDeleteFrom) {
         const { error } = await supabase.from(table).delete().eq('storeId', currentStoreId);
         if (error) {
