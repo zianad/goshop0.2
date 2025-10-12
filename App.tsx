@@ -97,6 +97,23 @@ const MainApp: React.FC<{
 
   const cartLoadedRef = useRef(false);
 
+  // This effect handles the initial activation of the store after the first successful login.
+  useEffect(() => {
+    // If the store object is present but the trial hasn't started, it means this is the first login.
+    if (store && !store.trialStartDate) {
+        const activateStore = async () => {
+            console.log('First login detected. Activating store in database...');
+            // The handleUpdateStore function is authenticated and will succeed.
+            await handleUpdateStore({
+                isActive: true,
+                trialStartDate: new Date().toISOString(),
+            });
+        };
+        activateStore();
+    }
+  }, [store, handleUpdateStore]);
+
+
   // Load persisted cart on login
   useEffect(() => {
     const loadCart = async () => {
@@ -591,12 +608,12 @@ const App: React.FC = () => {
         setSuperAdminView('landing');
     };
 
-    const handleUpdateStore = async (updatedStoreData: Partial<Store>) => {
+    const handleUpdateStore = useCallback(async (updatedStoreData: Partial<Store>) => {
       if (!auth.store) return;
       const fullUpdatedStore = { ...auth.store, ...updatedStoreData };
       await api.updateStore(fullUpdatedStore); // Persist to DB
       setAuth(prev => ({ ...prev, store: fullUpdatedStore })); // Update state
-    };
+    }, [auth.store]);
     
     const languageProps = { t, language, setLanguage: handleSetLanguage };
     const themeProps = { theme, toggleTheme };

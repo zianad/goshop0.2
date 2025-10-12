@@ -32,88 +32,33 @@ export async function clearCartFromDB(storeId: string, userId: string): Promise<
 
 export async function getStoreByLicenseKey(licenseKey: string): Promise<Store | null> {
     const originalKey = licenseKey.trim();
-    let storeData: Store | null = null;
     
-    // Attempt 1: Try the key as entered by the user. Use array select instead of .single() to avoid 406.
-    const { data: originalData, error: originalError } = await supabase
+    let { data: store, error } = await supabase
         .from('stores')
         .select('*')
         .eq('licenseKey', originalKey)
-        .limit(1);
+        .single();
 
-    if (originalError) {
-        console.error('Error fetching store with original key:', originalError);
-        throw originalError;
-    }
-    
-    if (originalData && originalData.length > 0) {
-        storeData = originalData[0];
-    }
-
-
-    // Attempt 2: If not found and prefix is missing, try adding the prefix.
-    if (!storeData && !originalKey.toUpperCase().startsWith('LK-')) {
+    if (error && error.code === 'PGRST116' && !originalKey.toUpperCase().startsWith('LK-')) {
+        // Not found, and prefix is missing, so try adding it.
         const prefixedKey = `LK-${originalKey}`;
-        const { data: prefixedData, error: prefixedError } = await supabase
+        const { data: prefixedStore, error: prefixedError } = await supabase
             .from('stores')
             .select('*')
             .eq('licenseKey', prefixedKey)
-            .limit(1);
-
-        if (prefixedError) {
-            console.error('Error fetching store with prefixed key:', prefixedError);
+            .single();
+        
+        // If there's an error on the second attempt (and it's not another "not found" error), throw it.
+        if (prefixedError && prefixedError.code !== 'PGRST116') {
             throw prefixedError;
         }
-        
-        if (prefixedData && prefixedData.length > 0) {
-            storeData = prefixedData[0];
-        }
+        store = prefixedStore;
+    } else if (error && error.code !== 'PGRST116') {
+        // An actual error occurred on the first attempt.
+        throw error;
     }
 
-    // If no store was found after all attempts, return null.
-    if (!storeData) {
-        return null;
-    }
-    
-    // Now that we have found the store data, handle the activation logic.
-    if (!storeData.trialStartDate) {
-        // First time activation. Update the store.
-        // Use .then() to avoid the client requesting the updated row back (return=minimal),
-        // which can cause a 406 error if RLS policies prevent the anon user
-        // from SELECTing the row after it has been updated.
-        const updatePromise = new Promise<void>((resolve, reject) => {
-            supabase
-                .from('stores')
-                .update({ 
-                    isActive: true, 
-                    trialStartDate: new Date().toISOString(),
-                })
-                .eq('id', storeData!.id)
-                .then(({ error: updateError }) => {
-                    if (updateError) {
-                        console.error('Error during store activation update:', updateError);
-                        reject(updateError);
-                    } else {
-                        resolve();
-                    }
-                });
-        });
-
-        try {
-            await updatePromise;
-            // If the update succeeds, optimistically return the updated store object.
-            return {
-                ...storeData,
-                isActive: true,
-                trialStartDate: new Date().toISOString(),
-            };
-        } catch (updateError) {
-            // Rethrow the error to be handled by the Auth component
-            throw updateError;
-        }
-    }
-
-    return storeData;
+    return store;
 }
 
 export async function getStoreById(storeId: string): Promise<Store | null> {
@@ -136,7 +81,9 @@ export async function verifyAndActivateStoreWithCode(storeId: string, activation
 }
 
 export async function login(store: Store, secret: string): Promise<{ user: User, store: Store }> {
-    if (!store.isActive) {
+    // Only block login if the store is inactive AND has been activated before (i.e., trial has started).
+    // This allows the very first login on a store that is technically inactive in the DB.
+    if (!store.isActive && store.trialStartDate) {
         throw new Error('storeDisabledError');
     }
 
@@ -289,13 +236,11 @@ export const addProduct = async (productData: Omit<Product, 'id'>, variantsData:
     }
     
     // 2. Prepare variants and stock batches
-    const variantsToInsert: Omit<ProductVariant, 'id'>[] = [];
     const stockBatchesToInsert: Omit<StockBatch, 'id'>[] = [];
     
     const createdVariants: ProductVariant[] = [];
 
     for(const v of variantsData) {
-        const variantId = crypto.randomUUID();
         const { stockQuantity, ...variantDetails } = v;
 
         const newVariant: Omit<ProductVariant, 'id'> = {
@@ -335,10 +280,10 @@ export const updateProduct = async (productData: Product, variantsData: (Partial
     if(productError) throw productError;
 
     // 2. Figure out which variants are new, updated, or deleted
-    const existingVariants = await supabase.from('productVariants').select('id').eq('productId', productData.id);
-    if(existingVariants.error) throw existingVariants.error;
+    const { data: existingVariantsData, error: fetchError } = await supabase.from('productVariants').select('id').eq('productId', productData.id);
+    if(fetchError) throw fetchError;
     
-    const existingVariantIds = new Set(existingVariants.data.map(v => v.id));
+    const existingVariantIds = new Set(existingVariantsData.map(v => v.id));
     const incomingVariantIds = new Set(variantsData.map(v => v.id).filter(Boolean));
     
     const variantsToDelete = Array.from(existingVariantIds).filter(id => !incomingVariantIds.has(id));
@@ -685,13 +630,10 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
     // If a sale/return was made by a user no longer in the backup, re-assign it to the admin.
     const remappedSales = backup.sales.map((sale: Sale) => ({
         ...sale,
-        // Cast `sale.userId` to string. Since `backup` is parsed from JSON, its properties are of type `any` or `unknown`.
-        // The `Set.has()` method expects a string, so we ensure the type is correct.
         userId: backupUserIds.has(sale.userId as string) ? sale.userId : adminId,
     }));
     const remappedReturns = backup.returns.map((ret: Return) => ({
         ...ret,
-        // Cast `ret.userId` to string for the same reason as above.
         userId: backupUserIds.has(ret.userId as string) ? ret.userId : adminId,
     }));
     
