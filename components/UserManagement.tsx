@@ -33,6 +33,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ storeId, users, addUser
   const [storeIce, setStoreIce] = useState(store.ice || '');
   const [storeLogo, setStoreLogo] = useState(store.logo || '');
   const [logoPreview, setLogoPreview] = useState(store.logo || '');
+  const [restoreText, setRestoreText] = useState('');
 
 
   const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -210,6 +211,28 @@ const UserManagement: React.FC<UserManagementProps> = ({ storeId, users, addUser
     if (e.target) e.target.value = '';
   };
   
+  const handleRestoreFromText = async () => {
+    if (!restoreText.trim()) {
+        alert(t('pasteBackupContent'));
+        return;
+    }
+    if (window.confirm(t('restoreConfirm'))) {
+        try {
+            const restoredStoreInfo = await api.restoreDatabase(restoreText);
+            if (restoredStoreInfo) {
+                localStorage.setItem('pos-license', JSON.stringify({ storeId: restoredStoreInfo.id }));
+                alert(t('restoreSuccess'));
+                window.location.reload();
+            } else {
+                throw new Error('restoreError');
+            }
+        } catch (err: any) {
+            const errorMessageKey = (err.message || 'restoreError') as keyof typeof translations.fr;
+            alert(t(errorMessageKey in translations.fr ? errorMessageKey : 'restoreError'));
+        }
+    }
+  };
+  
   const admin = users.find(u => u.role === 'admin');
 
   return (
@@ -331,38 +354,61 @@ const UserManagement: React.FC<UserManagementProps> = ({ storeId, users, addUser
       </div>
 
       {activeUser.role === 'admin' && (
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-              <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
-                  <DatabaseZapIcon />{t('backupAndRestore')}
-              </h2>
-              <div className="grid md:grid-cols-2 gap-6">
-                  {/* Backup Card */}
-                  <div className="border-2 border-dashed dark:border-slate-600 p-4 rounded-lg text-center flex flex-col items-center justify-center">
-                      <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300">{t('backupButton')}</h3>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 my-2">{t('backupDescription')}</p>
-                      <button
-                          onClick={handleBackup}
-                          className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors inline-flex items-center gap-2"
-                      >
-                          <FileDownIcon className="w-5 h-5" />
-                          {t('backupButton')}
-                      </button>
-                  </div>
-                  {/* Restore Card */}
-                  <div className="border-2 border-dashed border-red-500/50 dark:border-red-500/30 p-4 rounded-lg text-center flex flex-col items-center justify-center">
-                      <h3 className="text-lg font-bold text-red-600 dark:text-red-400">{t('restoreButton')}</h3>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 my-2">{t('restoreDescription')}</p>
-                      <input type="file" ref={restoreInputRef} onChange={handleRestore} className="hidden" accept=".json,application/json" />
-                      <button
-                          onClick={() => restoreInputRef.current?.click()}
-                          className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors inline-flex items-center gap-2"
-                      >
-                          <UploadIcon className="w-5 h-5" />
-                          {t('restoreButton')}
-                      </button>
-                  </div>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+          <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+              <DatabaseZapIcon />{t('backupAndRestore')}
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6">
+              <div className="border-2 border-dashed dark:border-slate-600 p-4 rounded-lg text-center flex flex-col items-center justify-center">
+                  <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300">{t('backupButton')}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 my-2">{t('backupDescription')}</p>
+                  <button
+                      onClick={handleBackup}
+                      className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors inline-flex items-center gap-2"
+                  >
+                      <FileDownIcon className="w-5 h-5" />
+                      {t('backupButton')}
+                  </button>
               </div>
           </div>
+
+          <div className="mt-6 border-t-2 border-dashed pt-6 dark:border-slate-700">
+            <h3 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">{t('restoreButton')}</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('restoreFromTextDescription')}</p>
+            
+            <textarea
+                value={restoreText}
+                onChange={(e) => setRestoreText(e.target.value)}
+                placeholder={t('pasteBackupContent')}
+                className="w-full h-48 p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600 font-mono text-xs"
+                aria-label={t('pasteBackupContent')}
+            />
+            
+            <button
+                onClick={handleRestoreFromText}
+                className="mt-4 bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors inline-flex items-center gap-2 disabled:bg-gray-400 dark:disabled:bg-slate-600"
+                disabled={!restoreText.trim()}
+            >
+                <UploadIcon className="w-5 h-5" />
+                {t('restoreFromText')}
+            </button>
+
+            <details className="mt-4 text-sm">
+                <summary className="cursor-pointer text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">{t('restoreFromFileAlternative')}</summary>
+                <div className="mt-2 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                    <p className="text-slate-500 dark:text-slate-400 my-2">{t('restoreDescription')}</p>
+                    <input type="file" ref={restoreInputRef} onChange={handleRestore} className="hidden" accept=".json,application/json" />
+                    <button
+                        onClick={() => restoreInputRef.current?.click()}
+                        className="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors inline-flex items-center gap-2"
+                    >
+                        <UploadIcon className="w-5 h-5" />
+                        {t('restoreButton')}
+                    </button>
+                </div>
+            </details>
+          </div>
+      </div>
       )}
       
       {editingUser && (
