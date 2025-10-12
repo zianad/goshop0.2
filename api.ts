@@ -609,16 +609,24 @@ const getStoreIdFromLicense = async (): Promise<string | null> => {
 
 export const restoreDatabase = async (jsonContent: string): Promise<Store | null> => {
     let backup;
+    let contentToParse = jsonContent;
+
+    // Regex to find and replace both "image" and "logo" data URIs
+    const imageAndLogoRegex = /"(image|logo)":\s*"data:image[^"]*"/g;
+
     try {
-        // First, try parsing as-is (for raw JSON)
-        backup = JSON.parse(jsonContent);
+        // First, try parsing after sanitizing (for raw JSON)
+        let sanitizedContent = contentToParse.replace(imageAndLogoRegex, '"$1": ""');
+        backup = JSON.parse(sanitizedContent);
     } catch (e) {
         // If it fails, it might be Base64 encoded.
         try {
-            const decodedContent = atob(jsonContent);
-            backup = JSON.parse(decodedContent);
+            const decodedContent = atob(contentToParse);
+            // Also sanitize the decoded content
+            let sanitizedDecodedContent = decodedContent.replace(imageAndLogoRegex, '"$1": ""');
+            backup = JSON.parse(sanitizedDecodedContent);
         } catch (decodeError) {
-            // If decoding also fails, then the file is truly corrupt.
+            // If all parsing attempts fail, the file is likely corrupt.
             console.error("JSON parsing and Base64 decoding both failed:", decodeError);
             throw new Error('restoreError');
         }
