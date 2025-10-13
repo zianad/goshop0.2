@@ -1,739 +1,505 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
 import { supabase } from './supabaseClient';
-import type { Product, ProductVariant, CartItem, Sale, Expense, User, Return, Store, Customer, Supplier, Category, Purchase, StockBatch, StoreTypeMap } from './types';
-import { IDBPDatabase, openDB } from 'idb';
+import type {
+  Store,
+  User,
+  Product,
+  ProductVariant,
+  Sale,
+  Expense,
+  Return,
+  Customer,
+  Supplier,
+  Category,
+  Purchase,
+  StockBatch,
+  CartItem,
+  StoreTypeMap,
+} from './types';
 
-const DB_NAME = 'pos-app-db';
+// Helper function to handle Supabase errors
+const handleSupabaseError = ({ error, data }: { error: any; data: any }, entityName?: string) => {
+  if (error) {
+    console.error(`Error with ${entityName || 'request'}:`, error);
+    if (error.message.includes("violates row-level security policy")) {
+        throw new Error(`Permission denied for ${entityName || 'operation'}. Check RLS policies in Supabase.`);
+    }
+    if (error.code === '23503') { // foreign key violation
+        if (entityName === 'customers') throw new Error('customerDeleteErrorHasDebt');
+        if (entityName === 'suppliers') throw new Error('supplierDeleteErrorHasDebt');
+        if (entityName === 'categories') throw new Error('categoryDeleteError');
+    }
+    throw new Error(error.message);
+  }
+  return data;
+};
 
-async function getDB(): Promise<IDBPDatabase> {
-  return openDB(DB_NAME, 1, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains('keyval')) {
-        db.createObjectStore('keyval');
-      }
-    },
-  });
-}
+// =================================================================
+// Store & Auth Functions
+// =================================================================
 
-export async function saveCart(storeId: string, userId: string, cart: CartItem[]): Promise<void> {
-    const db = await getDB();
-    await db.put('keyval', cart, `cart-${storeId}-${userId}`);
-}
+export const getStoreById = async (storeId: string): Promise<Store | null> => {
+  const { data, error } = await supabase.from('stores').select('*').eq('id', storeId).single();
+  if (error && error.code !== 'PGRST116') { // PGRST116: "The result contains 0 rows"
+    handleSupabaseError({ error, data }, 'stores');
+  }
+  return data;
+};
 
-export async function loadCart(storeId: string, userId: string): Promise<CartItem[]> {
-    const db = await getDB();
-    return (await db.get('keyval', `cart-${storeId}-${userId}`)) || [];
-}
-export async function clearCartFromDB(storeId: string, userId: string): Promise<void> {
-    const db = await getDB();
-    await db.delete('keyval', `cart-${storeId}-${userId}`);
-}
+export const getStoreByLicenseKey = async (licenseKey: string): Promise<Store | null> => {
+  const { data, error } = await supabase.from('stores').select('*').eq('licenseKey', licenseKey).single();
+  if (error && error.code !== 'PGRST116') {
+      handleSupabaseError({error, data}, 'stores');
+  }
+  return data;
+};
 
+export const getAllStores = async (): Promise<Store[]> => {
+    const { data, error } = await supabase.from('stores').select('*');
+    return handleSupabaseError({ error, data }, 'stores');
+};
 
-export async function getStoreByLicenseKey(licenseKey: string): Promise<Store | null> {
-    const originalKey = licenseKey.trim();
+export const updateStore = async (store: Partial<Store> & { id: string }): Promise<void> => {
+    const { error } = await supabase.from('stores').update(store).eq('id', store.id);
+    handleSupabaseError({ error, data: null }, 'stores');
+};
+
+export const verifyAndActivateStoreWithCode = async (storeId: string, activationCode: string): Promise<boolean> => {
+    const { data, error } = await supabase.rpc('activate_store_with_code', {
+        p_store_id: storeId,
+        p_activation_code: activationCode
+    });
     
-    let { data: store, error } = await supabase
-        .from('stores')
-        .select('*')
-        .eq('licenseKey', originalKey)
-        .single();
-
-    if (error && error.code === 'PGRST116' && !originalKey.toUpperCase().startsWith('LK-')) {
-        // Not found, and prefix is missing, so try adding it.
-        const prefixedKey = `LK-${originalKey}`;
-        const { data: prefixedStore, error: prefixedError } = await supabase
-            .from('stores')
-            .select('*')
-            .eq('licenseKey', prefixedKey)
-            .single();
-        
-        // If there's an error on the second attempt (and it's not another "not found" error), throw it.
-        if (prefixedError && prefixedError.code !== 'PGRST116') {
-            throw prefixedError;
-        }
-        store = prefixedStore;
-    } else if (error && error.code !== 'PGRST116') {
-        // An actual error occurred on the first attempt.
-        throw error;
+    if (error) {
+        console.error("RPC Error:", error);
+        throw new Error('invalidActivationCode');
     }
 
-    return store;
-}
-
-export async function getStoreById(storeId: string): Promise<Store | null> {
-    const { data, error } = await supabase.from('stores').select('*').eq('id', storeId).single();
-    if (error) throw new Error('storeNotFound');
     return data;
-}
+};
 
-export async function verifyAndActivateStoreWithCode(storeId: string, activationCode: string): Promise<boolean> {
-    const { data: store, error } = await supabase.from('stores').select('id, trialStartDate, licenseProof').eq('id', storeId).single();
-    if (error || !store) return false;
 
-    // The logic to verify the activation code would be here.
-    // For this example, we assume any code starting with 'PERM-' is valid for simplicity.
-    if (activationCode.startsWith('PERM-')) {
-        await supabase.from('stores').update({ trialStartDate: null, isActive: true }).eq('id', storeId);
-        return true;
+export const createStoreAndAdmin = async (
+    name: string, 
+    logo: string,
+    adminPassword: string,
+    adminEmail: string,
+    trialDurationDays: number,
+    address: string,
+    ice: string,
+    enableAiReceiptScan: boolean
+) => {
+    const { data, error } = await supabase.rpc('create_store_and_admin', {
+        p_store_name: name,
+        p_store_logo: logo,
+        p_admin_password: adminPassword,
+        p_admin_email: adminEmail,
+        p_trial_duration_days: trialDurationDays,
+        p_address: address,
+        p_ice: ice,
+        p_enable_ai_scan: enableAiReceiptScan,
+    });
+    
+    if (error) {
+        console.error('Error creating store and admin:', error);
+        throw new Error(error.message);
     }
-    return false;
-}
+    
+    return { licenseKey: data };
+};
 
-export async function login(store: Store, secret: string): Promise<{ user: User, store: Store }> {
-    // Only block login if the store is inactive AND has been activated before (i.e., trial has started).
-    // This allows the very first login on a store that is technically inactive in the DB.
-    if (!store.isActive && store.trialStartDate) {
+export const deleteStore = async (storeId: string): Promise<void> => {
+    const { error } = await supabase.rpc('delete_store_and_data', { p_store_id: storeId });
+    if (error) {
+        console.error('Error deleting store:', error);
+        throw new Error(error.message);
+    }
+};
+
+export const login = async (store: Store, secret: string): Promise<{ user: User, store: Store }> => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('storeId', store.id)
+      .or(`password.eq.${secret},pin.eq.${secret}`)
+      .single();
+
+    if (error || !data) {
+        throw new Error('invalidCredentialsError');
+    }
+    
+    if (!store.isActive) {
         throw new Error('storeDisabledError');
     }
 
-    // Try to log in as admin first (password)
-    let { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('storeId', store.id)
-        .eq('role', 'admin')
-        .eq('password', secret)
-        .single();
+    return { user: data, store };
+};
 
-    // If not admin, try to log in as seller (pin)
-    if (error || !user) {
-        const { data: sellerUser, error: sellerError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('storeId', store.id)
-            .eq('role', 'seller')
-            .eq('pin', secret)
-            .single();
-        
-        if (sellerError || !sellerUser) {
-            throw new Error('invalidCredentialsError');
-        }
-        user = sellerUser;
-    }
+// =================================================================
+// User Functions
+// =================================================================
 
-    return { user, store };
-}
-
-export async function getAllStores(): Promise<Store[]> {
-    const { data, error } = await supabase.from('stores').select('*');
-    if (error) {
-        console.error('Error fetching stores:', error);
-        return [];
-    }
-    return data || [];
-}
-
-export async function getAllUsers(): Promise<User[]> {
+export const getAllUsers = async (): Promise<User[]> => {
     const { data, error } = await supabase.from('users').select('*');
-    if (error) {
-        console.error('Error fetching users:', error);
-        return [];
-    }
-    return data || [];
-}
+    return handleSupabaseError({ error, data }, 'users');
+};
 
-export async function getAdminUserForStore(storeId: string): Promise<User | null> {
+export const getAdminUserForStore = async (storeId: string): Promise<User | null> => {
     const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('storeId', storeId)
         .eq('role', 'admin')
         .single();
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 means "exact one row not found", which is not an actual error for .single()
-        console.error("Error fetching admin user for store:", error);
-        // Re-throw the database error to be caught by the UI layer
-        throw error;
+    if (error && error.code !== 'PGRST116') {
+        handleSupabaseError({error, data}, 'users');
     }
-    // If there's no data but also no error, it means no user was found.
-    // .single() returns data as null in this case, which is what we want.
     return data;
-}
+};
 
-export async function createStoreAndAdmin(name: string, logo: string | undefined, adminPassword: string, adminEmail: string, trialDurationDays: number, address?: string, ice?: string, enableAiReceiptScan?: boolean): Promise<{ licenseKey: string }> {
-    const { data, error } = await supabase.rpc('create_store_with_admin', {
-        store_name: name,
-        store_logo: logo,
-        admin_password: adminPassword,
-        admin_email: adminEmail,
-        trial_days: trialDurationDays,
-        store_address: address,
-        store_ice: ice,
-        enable_ai: enableAiReceiptScan
-    });
-
-    if (error) {
-        console.error('Error creating store via RPC:', error);
-        throw error;
-    }
-    
-    return { licenseKey: data };
-}
-
-export async function deleteStore(storeId: string): Promise<void> {
-    const { error } = await supabase.rpc('delete_store_and_data', {
-        store_id_to_delete: storeId
-    });
-
-    if (error) {
-        console.error(`Error deleting store ${storeId} via RPC:`, error);
-        throw error;
-    }
-}
-
-
-export async function updateUser(user: User): Promise<void> {
-    const { error } = await supabase.from('users').update(user).eq('id', user.id);
-    if (error) throw error;
-}
-
-export async function updateStore(store: Store): Promise<void> {
-    const { error } = await supabase.from('stores').update(store).eq('id', store.id);
-    if (error) throw error;
-}
-
-export async function addUser(user: Omit<User, 'id'>): Promise<User | undefined> {
+export const addUser = async (user: Omit<User, 'id'>): Promise<User | undefined> => {
     const { data, error } = await supabase.from('users').insert(user).select().single();
-    if(error) throw error;
-    return data;
-}
+    return handleSupabaseError({ error, data }, 'users');
+};
 
+export const updateUser = async (user: User): Promise<void> => {
+    const { error } = await supabase.from('users').update(user).eq('id', user.id);
+    handleSupabaseError({ error, data: null }, 'users');
+};
 
-// --- Main App Data Fetch ---
-export async function getStoreData(storeId: string): Promise<Partial<StoreTypeMap>> {
-    const tables: (keyof StoreTypeMap)[] = ['products', 'productVariants', 'sales', 'expenses', 'customers', 'suppliers', 'returns', 'categories', 'purchases', 'stockBatches'];
-    const promises = tables.map(table =>
-        supabase.from(table).select('*').eq('storeId', storeId)
+export const deleteUser = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('users').delete().eq('id', id);
+    handleSupabaseError({ error, data: null }, 'users');
+};
+
+// =================================================================
+// Cart Functions
+// =================================================================
+
+export const loadCart = async (storeId: string, userId: string): Promise<CartItem[]> => {
+  const { data, error } = await supabase
+    .from('carts')
+    .select('cart_data')
+    .eq('store_id', storeId)
+    .eq('user_id', userId)
+    .single();
+  
+  if (error && error.code !== 'PGRST116') {
+      handleSupabaseError({ error, data }, 'carts');
+  }
+
+  return data?.cart_data || [];
+};
+
+export const saveCart = async (storeId: string, userId: string, cart: CartItem[]): Promise<void> => {
+  const { error } = await supabase
+    .from('carts')
+    .upsert({ store_id: storeId, user_id: userId, cart_data: cart }, { onConflict: 'store_id, user_id' });
+  
+  handleSupabaseError({ error, data: null }, 'carts');
+};
+
+export const clearCartFromDB = async (storeId: string, userId: string): Promise<void> => {
+    await saveCart(storeId, userId, []);
+};
+
+// =================================================================
+// Data Fetching for a Store
+// =================================================================
+
+export const getStoreData = async (storeId: string): Promise<Partial<StoreTypeMap>> => {
+    const tableNames: (keyof StoreTypeMap)[] = [
+        'products', 'productVariants', 'sales', 'expenses', 'customers', 
+        'suppliers', 'returns', 'categories', 'purchases', 'stockBatches'
+    ];
+    
+    const promises = tableNames.map(tableName => 
+        supabase.from(tableName).select('*').eq('storeId', storeId)
     );
 
     const results = await Promise.all(promises);
-
     const data: Partial<StoreTypeMap> = {};
-    results.forEach((result, index) => {
-        if (result.error) {
-            console.error(`Error fetching ${tables[index]}:`, result.error);
+    let hasError = false;
+
+    results.forEach((res, index) => {
+        if (res.error) {
+            console.error(`Error fetching ${tableNames[index]}:`, res.error);
+            hasError = true;
         } else {
-            (data as any)[tables[index]] = result.data;
+            const key = tableNames[index];
+            // Supabase returns snake_case, but our types are camelCase
+            // This is a simplified conversion, assuming no complex names.
+            // A more robust solution might use a utility function.
+            if (key === 'productVariants') data.productVariants = res.data as ProductVariant[];
+            else if (key === 'stockBatches') data.stockBatches = res.data as StockBatch[];
+            else (data as any)[key] = res.data;
         }
     });
+
+    if (hasError) {
+        throw new Error('Failed to fetch some store data.');
+    }
 
     return data;
-}
-
-// --- Product & Stock Management ---
-export const addProduct = async (productData: Omit<Product, 'id'>, variantsData: (Omit<ProductVariant, 'id'|'productId'|'storeId'> & { stockQuantity?: number })[]) => {
-    // 1. Insert the product
-    const { data: product, error: productError } = await supabase
-        .from('products')
-        .insert(productData)
-        .select()
-        .single();
-    if (productError) throw productError;
-
-    if (variantsData.length === 0) {
-        return { product, variants: [] };
-    }
-    
-    // 2. Prepare variants and stock batches
-    const stockBatchesToInsert: Omit<StockBatch, 'id'>[] = [];
-    
-    const createdVariants: ProductVariant[] = [];
-
-    for(const v of variantsData) {
-        const { stockQuantity, ...variantDetails } = v;
-
-        const newVariant: Omit<ProductVariant, 'id'> = {
-            ...variantDetails,
-            storeId: product.storeId,
-            productId: product.id,
-        };
-        // We're inserting one by one to get the ID back for the stock batch
-        const { data: createdVariant, error: variantError } = await supabase.from('productVariants').insert(newVariant).select().single();
-        if(variantError) throw variantError;
-        
-        createdVariants.push(createdVariant);
-
-        if (stockQuantity && stockQuantity > 0) {
-            stockBatchesToInsert.push({
-                storeId: product.storeId,
-                variantId: createdVariant.id,
-                quantity: stockQuantity,
-                purchasePrice: variantDetails.purchasePrice,
-                createdAt: new Date().toISOString()
-            });
-        }
-    }
-    
-    // 3. Insert stock batches if any
-    if (stockBatchesToInsert.length > 0) {
-        const { error: stockError } = await supabase.from('stockBatches').insert(stockBatchesToInsert);
-        if (stockError) throw stockError;
-    }
-
-    return { product, variants: createdVariants };
 };
 
-export const updateProduct = async (productData: Product, variantsData: (Partial<ProductVariant> & { stockQuantity?: number })[]) => {
-    // 1. Update the product itself
-    const { error: productError } = await supabase.from('products').update(productData).eq('id', productData.id);
-    if(productError) throw productError;
+// =================================================================
+// Product & Stock Functions
+// =================================================================
 
-    // 2. Figure out which variants are new, updated, or deleted
-    const { data: existingVariantsData, error: fetchError } = await supabase.from('productVariants').select('id').eq('productId', productData.id);
-    if(fetchError) throw fetchError;
-    
-    const existingVariantIds = new Set(existingVariantsData.map(v => v.id));
-    const incomingVariantIds = new Set(variantsData.map(v => v.id).filter(Boolean));
-    
-    const variantsToDelete = Array.from(existingVariantIds).filter(id => !incomingVariantIds.has(id));
-    const variantsToUpdate = variantsData.filter(v => v.id && existingVariantIds.has(v.id));
-    const variantsToAdd = variantsData.filter(v => !v.id);
+export const addProduct = async (
+    productData: Omit<Product, 'id'>, 
+    variantsData: (Omit<ProductVariant, 'id' | 'productId' | 'storeId'> & { stockQuantity?: number })[]
+): Promise<{ product: Product, variants: ProductVariant[] }> => {
+    const { data, error } = await supabase.rpc('create_product_with_variants', {
+        p_product_data: productData,
+        p_variants_data: variantsData,
+    });
 
-    // 3. Perform DB operations
-    if (variantsToDelete.length > 0) {
-        await supabase.from('productVariants').delete().in('id', variantsToDelete);
-        await supabase.from('stockBatches').delete().in('variantId', variantsToDelete);
+    if (error) {
+        console.error('Error in RPC create_product_with_variants', error);
+        throw new Error(error.message);
     }
-    if (variantsToUpdate.length > 0) {
-        for (const variant of variantsToUpdate) {
-            const { stockQuantity, ...variantDetails } = variant;
-            await supabase.from('productVariants').update(variantDetails).eq('id', variantDetails.id!);
-        }
-    }
-    if (variantsToAdd.length > 0) {
-        for (const variant of variantsToAdd) {
-            const { stockQuantity, ...variantDetails } = variant;
-            const newVariantData: Omit<ProductVariant, 'id'> = {
-                ...(variantDetails as Omit<ProductVariant, 'id'|'storeId'|'productId'>),
-                storeId: productData.storeId,
-                productId: productData.id
-            };
-            const { data: newVariant, error } = await supabase.from('productVariants').insert(newVariantData).select().single();
-            if (error) throw error;
-            
-            if (stockQuantity && stockQuantity > 0) {
-                await supabase.from('stockBatches').insert({
-                    storeId: productData.storeId,
-                    variantId: newVariant.id,
-                    quantity: stockQuantity,
-                    purchasePrice: newVariant.purchasePrice,
-                    createdAt: new Date().toISOString()
-                });
-            }
-        }
+    
+    return data;
+};
+
+export const updateProduct = async (
+    productData: Product, 
+    variantsData: (Partial<ProductVariant> & { stockQuantity?: number })[]
+): Promise<void> => {
+    const { error } = await supabase.rpc('update_product_with_variants', {
+        p_product_data: productData,
+        p_variants_data: variantsData,
+    });
+    
+    if (error) {
+        console.error('Error in RPC update_product_with_variants', error);
+        throw new Error(error.message);
     }
 };
 
-export const deleteProduct = async (id: string) => {
+export const deleteProduct = async (id: string): Promise<void> => {
     const { error } = await supabase.from('products').delete().eq('id', id);
-    if (error) throw error;
+    handleSupabaseError({ error, data: null }, 'products');
 };
 
-export const addStockAndUpdateVariant = async (storeId: string, variantId: string, quantity: number, purchasePrice: number, sellingPrice: number, supplierId: string | undefined) => {
-    const { error: stockError } = await supabase.from('stockBatches').insert({
-        storeId,
-        variantId,
-        quantity,
-        purchasePrice,
-        createdAt: new Date().toISOString()
+export const addStockAndUpdateVariant = async (
+    storeId: string,
+    variantId: string,
+    quantity: number,
+    purchasePrice: number,
+    sellingPrice: number,
+    supplierId: string | undefined
+) => {
+    const { error } = await supabase.rpc('add_stock_and_update_variant', {
+        p_store_id: storeId,
+        p_variant_id: variantId,
+        p_quantity: quantity,
+        p_purchase_price: purchasePrice,
+        p_selling_price: sellingPrice,
+        p_supplier_id: supplierId,
     });
-    if (stockError) throw stockError;
-    
-    // Also update the variant's purchase and selling price
-    const { error: variantError } = await supabase.from('productVariants').update({
-        purchasePrice: purchasePrice,
-        price: sellingPrice
-    }).eq('id', variantId);
-    if(variantError) throw variantError;
-
-     // Record the purchase
-    const { data: variant, error: variantFetchError } = await supabase.from('productVariants').select('*, products(name)').eq('id', variantId).single();
-    if (variantFetchError) { console.error("Could not fetch variant for purchase record:", variantFetchError); return; }
-
-    const purchaseItem: Purchase['items'][0] = {
-        variantId: variant.id,
-        productId: variant.productId,
-        productName: (variant.products as any)?.name || 'Unknown',
-        variantName: variant.name,
-        quantity: quantity,
-        purchasePrice: purchasePrice
-    };
-
-    const totalAmount = quantity * purchasePrice;
-    await addPurchase({
-        storeId,
-        supplierId,
-        date: new Date().toISOString(),
-        items: [purchaseItem],
-        totalAmount: totalAmount,
-        amountPaid: totalAmount, // Assume fully paid
-        remainingAmount: 0,
-        paymentMethod: 'cash',
-        reference: 'purchase_ref_stock_adjustment'
-    });
-};
-
-
-// --- Sales & Returns ---
-
-export const completeSale = async (storeId: string, cart: CartItem[], downPayment: number, customerId: string | undefined, finalTotal: number, userId: string): Promise<Sale> => {
-    const total = finalTotal;
-    const profit = cart.reduce((acc, item) => {
-        const itemProfit = (item.price - (item.purchasePrice || 0)) * item.quantity;
-        return acc + (itemProfit > 0 ? itemProfit : 0);
-    }, 0);
-
-    const sale: Omit<Sale, 'id'> = {
-        storeId,
-        userId,
-        date: new Date().toISOString(),
-        items: cart,
-        total: total,
-        downPayment,
-        remainingAmount: Math.max(0, total - downPayment),
-        profit,
-        customerId
-    };
-    
-    // 1. Record the sale
-    const { data: saleData, error: saleError } = await supabase.from('sales').insert(sale).select().single();
-    if(saleError) throw saleError;
-    
-    // 2. Update stock
-    const stockUpdates: Omit<StockBatch, 'id'>[] = [];
-    cart.forEach(item => {
-        if(item.type === 'good') {
-            stockUpdates.push({
-                storeId,
-                variantId: item.id,
-                quantity: -item.quantity,
-                purchasePrice: item.purchasePrice || 0,
-                createdAt: new Date().toISOString()
-            });
-        }
-    });
-
-    if (stockUpdates.length > 0) {
-        const { error: stockError } = await supabase.from('stockBatches').insert(stockUpdates);
-        if(stockError) throw stockError;
-    }
-
-    return saleData;
-};
-
-export const processReturn = async (storeId: string, itemsToReturn: CartItem[], userId: string): Promise<Return> => {
-    const refundAmount = itemsToReturn.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    const profitLost = itemsToReturn.reduce((acc, item) => {
-        const itemProfit = (item.price - (item.purchasePrice || 0)) * item.quantity;
-        return acc + (itemProfit > 0 ? itemProfit : 0);
-    }, 0);
-    
-    const returnRecord: Omit<Return, 'id'> = {
-        storeId,
-        userId,
-        date: new Date().toISOString(),
-        items: itemsToReturn,
-        refundAmount,
-        profitLost,
-    };
-    
-    // 1. Record the return
-    const { data: returnData, error: returnError } = await supabase.from('returns').insert(returnRecord).select().single();
-    if (returnError) throw returnError;
-    
-    // 2. Update stock (add items back)
-    const stockUpdates: Omit<StockBatch, 'id'>[] = [];
-    itemsToReturn.forEach(item => {
-        if(item.type === 'good') {
-            stockUpdates.push({
-                storeId,
-                variantId: item.id,
-                quantity: item.quantity,
-                purchasePrice: item.purchasePrice || 0,
-                createdAt: new Date().toISOString()
-            });
-        }
-    });
-
-    if (stockUpdates.length > 0) {
-        const { error: stockError } = await supabase.from('stockBatches').insert(stockUpdates);
-        if(stockError) throw stockError;
-    }
-
-    return returnData;
-};
-
-export const deleteReturn = async (returnId: string) => {
-    await supabase.from('returns').delete().eq('id', returnId);
-};
-
-export const deleteAllReturns = async (storeId: string) => {
-    await supabase.from('returns').delete().eq('storeId', storeId);
-};
-
-export const payCustomerDebt = async (customerId: string, amount: number) => {
-    // This is a simplified implementation. A real system would create a payment transaction record.
-    // Here, we'll find the oldest debt and reduce it.
-    
-    let amountToApply = amount;
-    const { data: salesWithDebt, error } = await supabase
-        .from('sales')
-        .select('*')
-        .eq('customerId', customerId)
-        .gt('remainingAmount', 0)
-        .order('date', { ascending: true });
-
-    if(error) throw error;
-    
-    for (const sale of salesWithDebt) {
-        if (amountToApply <= 0) break;
-        
-        const payment = Math.min(amountToApply, sale.remainingAmount);
-        const newRemaining = sale.remainingAmount - payment;
-        
-        await supabase.from('sales').update({ remainingAmount: newRemaining }).eq('id', sale.id);
-        
-        amountToApply -= payment;
+    if (error) {
+        console.error('Error adding stock:', error);
+        throw new Error(error.message);
     }
 };
 
+// =================================================================
+// Sales & Returns
+// =================================================================
 
-// --- Generic CRUD ---
+export const completeSale = async (
+    storeId: string,
+    cart: CartItem[],
+    downPayment: number,
+    customerId: string | undefined,
+    finalTotal: number,
+    userId: string
+): Promise<Sale> => {
+    const { data, error } = await supabase.rpc('complete_sale', {
+        p_store_id: storeId,
+        p_user_id: userId,
+        p_cart_items: cart,
+        p_down_payment: downPayment,
+        p_customer_id: customerId,
+        p_final_total: finalTotal,
+    });
+    
+    if (error) {
+        console.error('Error completing sale:', error);
+        throw new Error(error.message);
+    }
+    
+    return data;
+};
+
+export const processReturn = async (
+    storeId: string,
+    itemsToReturn: CartItem[],
+    userId: string
+): Promise<Return> => {
+    const { data, error } = await supabase.rpc('process_return', {
+        p_store_id: storeId,
+        p_user_id: userId,
+        p_return_items: itemsToReturn,
+    });
+    
+    if (error) {
+        console.error('Error processing return:', error);
+        throw new Error(error.message);
+    }
+
+    return data;
+};
+
+export const deleteReturn = async (returnId: string): Promise<void> => {
+    const { error } = await supabase.from('returns').delete().eq('id', returnId);
+    handleSupabaseError({ error, data: null }, 'returns');
+};
+
+export const deleteAllReturns = async (storeId: string): Promise<void> => {
+    const { error } = await supabase.from('returns').delete().eq('storeId', storeId);
+    handleSupabaseError({ error, data: null }, 'returns');
+};
+
+export const payCustomerDebt = async (customerId: string, amount: number): Promise<void> => {
+    const { error } = await supabase.rpc('pay_customer_debt', {
+        p_customer_id: customerId,
+        p_amount: amount,
+    });
+
+    if (error) {
+        console.error('Error paying customer debt:', error);
+        throw new Error(error.message);
+    }
+};
+
+// =================================================================
+// Expenses
+// =================================================================
+
 export const addExpense = async (expense: Omit<Expense, 'id'>): Promise<Expense | undefined> => {
     const { data, error } = await supabase.from('expenses').insert(expense).select().single();
-    if(error) throw error;
-    return data;
-}
-export const updateExpense = async (expense: Expense) => {
-    await supabase.from('expenses').update(expense).eq('id', expense.id);
-}
-export const deleteExpense = async (id: string) => {
-    await supabase.from('expenses').delete().eq('id', id);
-}
+    return handleSupabaseError({ error, data }, 'expenses');
+};
 
+export const updateExpense = async (expense: Expense): Promise<void> => {
+    const { error } = await supabase.from('expenses').update(expense).eq('id', expense.id);
+    handleSupabaseError({ error, data: null }, 'expenses');
+};
+
+export const deleteExpense = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('expenses').delete().eq('id', id);
+    handleSupabaseError({ error, data: null }, 'expenses');
+};
+
+// =================================================================
+// Customers
+// =================================================================
 export const addCustomer = async (customer: Omit<Customer, 'id'>): Promise<Customer | undefined> => {
-     const { data, error } = await supabase.from('customers').insert(customer).select().single();
-     if(error) throw error;
-     return data;
-}
-export const deleteCustomer = async (id: string) => {
-    const { data: sales, error: salesError } = await supabase.from('sales').select('remainingAmount').eq('customerId', id);
-    if(salesError) throw salesError;
-    const totalDebt = sales.reduce((sum, s) => sum + s.remainingAmount, 0);
-    if(totalDebt > 0) {
-        throw new Error('customerDeleteErrorHasDebt');
-    }
-    await supabase.from('customers').delete().eq('id', id);
-}
+    const { data, error } = await supabase.from('customers').insert(customer).select().single();
+    return handleSupabaseError({ error, data }, 'customers');
+};
 
+export const deleteCustomer = async (id: string): Promise<void> => {
+    const { data, error } = await supabase.from('customers').delete().eq('id', id);
+    handleSupabaseError({ error, data }, 'customers');
+};
+
+// =================================================================
+// Suppliers
+// =================================================================
 export const addSupplier = async (supplier: Omit<Supplier, 'id'>): Promise<Supplier | undefined> => {
     const { data, error } = await supabase.from('suppliers').insert(supplier).select().single();
-    if(error) throw error;
-    return data;
-}
-export const deleteSupplier = async (id: string) => {
-    const { data: purchases, error: purchaseError } = await supabase.from('purchases').select('remainingAmount').eq('supplierId', id);
-    if (purchaseError) throw purchaseError;
-    const totalDebt = purchases.reduce((sum, p) => sum + p.remainingAmount, 0);
-    if (totalDebt > 0) {
-        throw new Error('supplierDeleteErrorHasDebt');
-    }
-    await supabase.from('suppliers').delete().eq('id', id);
-}
+    return handleSupabaseError({ error, data }, 'suppliers');
+};
 
+export const deleteSupplier = async (id: string): Promise<void> => {
+    const { data, error } = await supabase.from('suppliers').delete().eq('id', id);
+    handleSupabaseError({ error, data }, 'suppliers');
+};
+
+
+// =================================================================
+// Categories
+// =================================================================
 export const addCategory = async (category: Omit<Category, 'id'>): Promise<Category | undefined> => {
     const { data, error } = await supabase.from('categories').insert(category).select().single();
-    if(error) throw error;
-    return data;
-}
-export const updateCategory = async (category: Category) => {
-    await supabase.from('categories').update(category).eq('id', category.id);
-}
-export const deleteCategory = async (id: string) => {
-    const { data, error } = await supabase.from('products').select('id').eq('categoryId', id).limit(1);
-    if (error) throw error;
-    if (data.length > 0) {
-        throw new Error('categoryDeleteError');
+    return handleSupabaseError({ error, data }, 'categories');
+};
+
+export const updateCategory = async (category: Category): Promise<void> => {
+    const { error } = await supabase.from('categories').update(category).eq('id', category.id);
+    handleSupabaseError({ error, data: null }, 'categories');
+};
+
+export const deleteCategory = async (id: string): Promise<void> => {
+    const { data, error } = await supabase.from('categories').delete().eq('id', id);
+    handleSupabaseError({ error, data }, 'categories');
+};
+
+// =================================================================
+// Purchases
+// =================================================================
+
+export const addPurchase = async (purchase: Omit<Purchase, 'id'>): Promise<void> => {
+    const { error } = await supabase.rpc('add_purchase_and_stock', {
+        p_purchase_data: purchase
+    });
+    if (error) {
+        console.error('Error in RPC add_purchase_and_stock:', error);
+        throw new Error(error.message);
     }
-    await supabase.from('categories').delete().eq('id', id);
-}
-
-export const addPurchase = async (purchase: Omit<Purchase, 'id'>) => {
-    const { error: purchaseError } = await supabase.from('purchases').insert(purchase);
-    if (purchaseError) throw purchaseError;
-
-    // Add stock for each item in the purchase
-    const stockUpdates = purchase.items.map(item => ({
-        storeId: purchase.storeId,
-        variantId: item.variantId,
-        quantity: item.quantity,
-        purchasePrice: item.purchasePrice,
-        createdAt: purchase.date,
-    }));
-    const { error: stockError } = await supabase.from('stockBatches').insert(stockUpdates);
-    if (stockError) throw stockError;
 };
 
-export const updatePurchase = async (purchase: Purchase) => {
-    await supabase.from('purchases').update(purchase).eq('id', purchase.id);
+export const updatePurchase = async (purchase: Purchase): Promise<void> => {
+    const { error } = await supabase.from('purchases').update(purchase).eq('id', purchase.id);
+    handleSupabaseError({ error, data: null }, 'purchases');
 };
 
-export const deleteUser = async (id: string) => {
-    await supabase.from('users').delete().eq('id', id);
-};
-
-// --- Backup & Restore ---
+// =================================================================
+// Backup & Restore
+// =================================================================
 
 export const getDatabaseContents = async (): Promise<string> => {
-    const { data: store, error: storeError } = await supabase.from('stores').select('*').eq('id', (await getStoreIdFromLicense())!).single();
-    if (storeError) throw storeError;
-    
-    const allData = await getStoreData(store.id);
-    const allUsers = await getAllUsers();
-    
-    const backup = {
-      ...allData,
-      users: allUsers.filter(u => u.storeId === store.id),
-      stores: [store],
-      storeId: store.id
-    };
-    
-    return JSON.stringify(backup, null, 2);
+    const { data, error } = await supabase.rpc('backup_database');
+    if (error) {
+        console.error('Error backing up database:', error);
+        throw new Error(error.message);
+    }
+    // Pretty print the JSON with an indentation of 2 spaces
+    return JSON.stringify(data, null, 2);
 };
 
-const getStoreIdFromLicense = async (): Promise<string | null> => {
-    const license = localStorage.getItem('pos-license');
-    return license ? JSON.parse(license).storeId : null;
-};
 
-export const restoreDatabase = async (jsonContent: string): Promise<Store | null> => {
-    let backup;
-    const contentToParse = jsonContent.trim();
-
-    const imageAndLogoRegex = /"(image|logo)":\s*("data:image[^"]*"|null)/g;
-
-    const isLikelyBase64 = (str: string) => {
-        if (str.startsWith('{') || str.startsWith('[')) {
-            return false;
-        }
-        if (/[^A-Za-z0-9+/=\s]/.test(str)) {
-            return false;
-        }
-        return true;
-    };
-
+export const restoreDatabase = async (content: string): Promise<{id: string} | null> => {
+    let sanitizedContent = content;
+    // Regex to find "logo": "data:image...", and replace its value with ""
+    // It handles various whitespace and base64 characters more robustly.
+    const logoRegex = /"logo"\s*:\s*"data:image\/[^"]*"/g;
+    sanitizedContent = sanitizedContent.replace(logoRegex, '"logo": ""');
+    
+    let jsonData;
     try {
-        const sanitizedContent = contentToParse.replace(imageAndLogoRegex, '"$1": ""');
-        backup = JSON.parse(sanitizedContent);
-    } catch (e) {
-        if (isLikelyBase64(contentToParse)) {
-            try {
-                const decodedContent = atob(contentToParse);
-                const sanitizedDecodedContent = decodedContent.replace(imageAndLogoRegex, '"$1": ""');
-                backup = JSON.parse(sanitizedDecodedContent);
-            } catch (decodeError: any) {
-                console.error("Base64 decoding or parsing failed:", decodeError);
-                throw new Error('restoreError');
-            }
-        } else {
-             console.error("JSON parsing failed, and content is not Base64:", e);
-             throw new Error('jsonParseError');
+        jsonData = JSON.parse(sanitizedContent);
+    } catch (parseError: any) {
+        console.error('Initial JSON parse failed:', parseError);
+        // If initial parse fails, try decoding from Base64
+        try {
+            const decodedContent = atob(sanitizedContent);
+            jsonData = JSON.parse(decodedContent);
+        } catch (decodeError: any) {
+            console.error('Base64 decode or parse failed:', decodeError);
+            throw new Error('jsonParseError');
         }
     }
 
-
-    if (!backup || typeof backup !== 'object') {
-        throw new Error('restoreError');
+    const { data, error } = await supabase.rpc('restore_database', { p_backup_data: jsonData });
+    if (error) {
+        console.error('Error in RPC restore_database:', error);
+        throw new Error(error.message);
     }
-
-    // 1. More Robust Validation & storeId inference for backward compatibility
-    let currentStoreId: string | undefined = backup.storeId;
-    if (!currentStoreId) {
-        if (Array.isArray(backup.stores) && backup.stores.length === 1 && backup.stores[0].id) {
-            currentStoreId = backup.stores[0].id;
-        } else {
-            throw new Error('restoreError');
-        }
-    }
-    
-    const storeInfo = backup.stores?.find((s: Store) => s.id === currentStoreId);
-    if (!storeInfo) {
-        throw new Error('restoreError');
-    }
-
-    // 2. Make table validation flexible for backward compatibility
-    const allPossibleTables: (keyof StoreTypeMap)[] = ['stores', 'users', 'products', 'productVariants', 'sales', 'expenses', 'returns', 'customers', 'suppliers', 'categories', 'purchases', 'stockBatches'];
-    for (const table of allPossibleTables) {
-        if (!Array.isArray(backup[table])) {
-            backup[table] = []; // If a table is missing, treat it as empty.
-        }
-    }
-    
-    // 3. Data Sanitization & Remapping
-    const backupUserIds = new Set(backup.users.map((u: User) => u.id));
-    const adminUser = backup.users.find((u: User) => u.role === 'admin' && u.storeId === currentStoreId);
-
-    if (!adminUser) {
-        throw new Error('restoreError'); // No admin user found in backup for this store
-    }
-    const adminId = adminUser.id;
-
-    // If a sale/return was made by a user no longer in the backup, re-assign it to the admin.
-    const remappedSales = backup.sales.map((sale: Sale) => ({
-        ...sale,
-        userId: (typeof sale.userId === 'string' && backupUserIds.has(sale.userId)) ? sale.userId : adminId,
-    }));
-    const remappedReturns = backup.returns.map((ret: Return) => ({
-        ...ret,
-        userId: (typeof ret.userId === 'string' && backupUserIds.has(ret.userId)) ? ret.userId : adminId,
-    }));
-    
-    // 4. Clear existing data for the store (in correct order to respect FK constraints)
-    const tablesToDeleteFrom: (keyof StoreTypeMap)[] = [
-        'returns', 'sales', 'stockBatches', 'purchases', 
-        'productVariants', 'products', 'customers', 
-        'suppliers', 'categories', 'users', 'expenses'
-    ];
-    if (typeof currentStoreId !== 'string') {
-        throw new Error('restoreError');
-    }
-    for (const table of tablesToDeleteFrom) {
-        const { error } = await supabase.from(table).delete().eq('storeId', currentStoreId);
-        if (error) {
-            console.error(`Error clearing table ${table}:`, error);
-            throw new Error('restoreError');
-        }
-    }
-
-    // 5. Insert new data (in correct order)
-    const insertionOrder: (keyof StoreTypeMap)[] = [
-        'users', 'suppliers', 'categories', 'customers', 'products', 'productVariants', 
-        'stockBatches', 'purchases', 'expenses'
-    ];
-    
-    await supabase.from('stores').upsert(storeInfo);
-
-    for (const table of insertionOrder) {
-        const dataToInsert = backup[table];
-        if (dataToInsert && dataToInsert.length > 0) {
-            const { error } = await supabase.from(table).insert(dataToInsert);
-            if (error) {
-                console.error(`Error restoring table ${table}:`, error);
-                throw new Error('restoreError');
-            }
-        }
-    }
-    
-    // Insert remapped sales and returns separately
-    if (remappedSales?.length) {
-        const { error } = await supabase.from('sales').insert(remappedSales);
-        if(error) { console.error('Error restoring sales:', error); throw new Error('restoreError'); }
-    }
-    if (remappedReturns?.length) {
-        const { error } = await supabase.from('returns').insert(remappedReturns);
-        if(error) { console.error('Error restoring returns:', error); throw new Error('restoreError'); }
-    }
-
-    return storeInfo || null;
+    return data;
 };
