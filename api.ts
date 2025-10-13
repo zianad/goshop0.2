@@ -223,16 +223,17 @@ export const getStoreData = async (storeId: string): Promise<Partial<StoreTypeMa
 
     results.forEach((res, index) => {
         if (res.error) {
-            console.error(`Error fetching ${tableNames[index]}:`, res.error);
-            hasError = true;
+            // Ignore error if table doesn't exist, it might be a new schema feature
+            if (res.error.code !== '42P01') { // 42P01: undefined_table
+              console.error(`Error fetching ${tableNames[index]}:`, res.error);
+              hasError = true;
+            } else {
+              console.warn(`Table "${tableNames[index]}" not found, skipping.`);
+              (data as any)[tableNames[index]] = [];
+            }
         } else {
             const key = tableNames[index];
-            // Supabase returns snake_case, but our types are camelCase
-            // This is a simplified conversion, assuming no complex names.
-            // A more robust solution might use a utility function.
-            if (key === 'productVariants') data.productVariants = res.data as ProductVariant[];
-            else if (key === 'stockBatches') data.stockBatches = res.data as StockBatch[];
-            else (data as any)[key] = res.data;
+            (data as any)[key] = res.data;
         }
     });
 
@@ -475,31 +476,87 @@ export const getDatabaseContents = async (): Promise<string> => {
 
 
 export const restoreDatabase = async (content: string): Promise<{id: string} | null> => {
-    let sanitizedContent = content;
-    // Regex to find "logo": "data:image...", and replace its value with ""
-    // It handles various whitespace and base64 characters more robustly.
-    const logoRegex = /"logo"\s*:\s*"data:image\/[^"]*"/g;
-    sanitizedContent = sanitizedContent.replace(logoRegex, '"logo": ""');
-    
     let jsonData;
     try {
+        let sanitizedContent = content;
+        const logoRegex = /"logo"\s*:\s*"data:image\/[^"]*"/g;
+        sanitizedContent = sanitizedContent.replace(logoRegex, '"logo": ""');
         jsonData = JSON.parse(sanitizedContent);
-    } catch (parseError: any) {
-        console.error('Initial JSON parse failed:', parseError);
-        // If initial parse fails, try decoding from Base64
-        try {
-            const decodedContent = atob(sanitizedContent);
-            jsonData = JSON.parse(decodedContent);
-        } catch (decodeError: any) {
-            console.error('Base64 decode or parse failed:', decodeError);
-            throw new Error('jsonParseError');
+    } catch (e) {
+        console.error("JSON Parse Error:", e);
+        throw new Error('jsonParseError');
+    }
+
+    const requiredKeys = ['stores', 'users', 'products', 'productVariants'];
+    for (const key of requiredKeys) {
+        if (!jsonData.hasOwnProperty(key)) {
+            console.error(`Backup file missing required key: ${key}`);
+            throw new Error('restoreError');
+        }
+    }
+    
+    const storeId = jsonData.stores[0]?.id;
+    if (!storeId) {
+        console.error("No storeId found in backup file.");
+        throw new Error('restoreError');
+    }
+
+    const tablesInOrder: (keyof StoreTypeMap)[] = [
+        'suppliers', 'customers', 'categories', 'users', 'products',
+        'productVariants', 'purchases', 'stockBatches', 'sales',
+        'returns', 'expenses'
+    ];
+
+    // Deletion in reverse order to respect foreign keys
+    for (const tableName of [...tablesInOrder].reverse()) {
+        const { error } = await supabase.from(tableName).delete().eq('storeId', storeId);
+         if (error) {
+            if (error.code === '42P01') { // undefined_table
+                 console.warn(`Table "${tableName}" does not exist, skipping deletion. This might be expected.`);
+            } else {
+                console.error(`Error deleting from ${tableName}:`, error);
+                throw new Error(`Erreur lors du vidage de la table ${tableName}: ${error.message}`);
+            }
+        }
+    }
+    
+    // We update the store, we don't delete/re-insert it as it contains license info.
+    if (jsonData.stores && jsonData.stores.length > 0) {
+        const { id, ...storeUpdateData } = jsonData.stores[0];
+        storeUpdateData.trialStartDate = storeUpdateData.trialStartDate || null;
+        storeUpdateData.licenseProof = storeUpdateData.licenseProof || null;
+        
+        const { error } = await supabase.from('stores').update(storeUpdateData).eq('id', id);
+        if (error) handleSupabaseError({ error, data: null }, 'stores');
+    }
+    
+    // Insertion in correct order
+    for (const tableName of tablesInOrder) {
+        const dataToInsert = (jsonData as any)[tableName];
+        if (dataToInsert && Array.isArray(dataToInsert) && dataToInsert.length > 0) {
+            const itemsWithStoreId = dataToInsert.map((item: any) => ({ ...item, storeId }));
+            
+            const chunkSize = 150;
+            for (let i = 0; i < itemsWithStoreId.length; i += chunkSize) {
+                const chunk = itemsWithStoreId.slice(i, i + chunkSize);
+                const { error } = await supabase.from(tableName).insert(chunk);
+
+                if (error) {
+                    if (error.code === '42P01') { // undefined_table
+                         console.warn(`Table "${tableName}" does not exist, skipping insertion. Please check your DB schema.`);
+                         break; 
+                    } else if (error.code === '23503') { // foreign key violation
+                        console.error(`Foreign key violation inserting into ${tableName}.`, { chunk, error });
+                        throw new Error(`Erreur de restauration pour ${tableName}: une référence (ex: ID de produit, client) est introuvable. ${error.message}`);
+                    }
+                    else {
+                        console.error(`Error inserting into ${tableName}:`, error);
+                        throw new Error(`Erreur de restauration pour ${tableName}: ${error.message}`);
+                    }
+                }
+            }
         }
     }
 
-    const { data, error } = await supabase.rpc('restore_database', { p_backup_data: jsonData });
-    if (error) {
-        console.error('Error in RPC restore_database:', error);
-        throw new Error(error.message);
-    }
-    return data;
+    return { id: storeId };
 };
