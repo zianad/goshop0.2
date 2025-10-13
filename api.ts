@@ -626,7 +626,8 @@ export const restoreDatabase = async (jsonContent: string): Promise<Store | null
             // Also sanitize the decoded content
             let sanitizedDecodedContent = decodedContent.replace(imageAndLogoRegex, '"$1": ""');
             backup = JSON.parse(sanitizedDecodedContent);
-        } catch (decodeError) {
+// FIX: Explicitly type the caught error variable to `any` to prevent TypeScript from inferring it as `unknown`, which would cause a type error. This ensures compatibility with stricter compiler options like `useUnknownInCatchVariables`.
+        } catch (decodeError: any) {
             // If all parsing attempts fail, the file is likely corrupt.
             console.error("JSON parsing and Base64 decoding both failed:", decodeError);
             throw new Error('restoreError');
