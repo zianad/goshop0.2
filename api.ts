@@ -478,26 +478,22 @@ export const getDatabaseContents = async (): Promise<string> => {
 export const restoreDatabase = async (content: string): Promise<{id: string} | null> => {
     let jsonData;
     try {
-        let sanitizedContent = content;
-        const logoRegex = /"logo"\s*:\s*"data:image\/[^"]*"/g;
-        sanitizedContent = sanitizedContent.replace(logoRegex, '"logo": ""');
+        let sanitizedContent = content.replace(/"logo"\s*:\s*"data:image\/[^"]*"/g, '"logo": ""');
         jsonData = JSON.parse(sanitizedContent);
     } catch (e) {
         console.error("JSON Parse Error:", e);
         throw new Error('jsonParseError');
     }
 
-    const requiredKeys = ['stores', 'users', 'products', 'productVariants'];
+    const requiredKeys = ['stores', 'users'];
     for (const key of requiredKeys) {
         if (!jsonData.hasOwnProperty(key)) {
-            console.error(`Backup file missing required key: ${key}`);
             throw new Error('restoreError');
         }
     }
     
     const storeId = jsonData.stores[0]?.id;
     if (!storeId) {
-        console.error("No storeId found in backup file.");
         throw new Error('restoreError');
     }
 
@@ -507,30 +503,28 @@ export const restoreDatabase = async (content: string): Promise<{id: string} | n
         'returns', 'expenses'
     ];
 
-    // Deletion in reverse order to respect foreign keys
+    // Deletion in reverse order, gracefully skipping non-existent tables
     for (const tableName of [...tablesInOrder].reverse()) {
-        const { error } = await supabase.from(tableName).delete().eq('storeId', storeId);
-         if (error) {
-            if (error.code === '42P01') { // undefined_table
-                 console.warn(`Table "${tableName}" does not exist, skipping deletion. This might be expected.`);
+        const { error: deleteError } = await supabase.from(tableName).delete().eq('storeId', storeId);
+        if (deleteError) {
+            if (deleteError.code === '42P01') { // undefined_table
+                 console.warn(`Table "${tableName}" does not exist, skipping deletion.`);
             } else {
-                console.error(`Error deleting from ${tableName}:`, error);
-                throw new Error(`Erreur lors du vidage de la table ${tableName}: ${error.message}`);
+                console.error(`Error deleting from ${tableName}:`, deleteError);
+                throw new Error(`Erreur lors du vidage de la table ${tableName}: ${deleteError.message}`);
             }
         }
     }
     
-    // We update the store, we don't delete/re-insert it as it contains license info.
     if (jsonData.stores && jsonData.stores.length > 0) {
         const { id, ...storeUpdateData } = jsonData.stores[0];
         storeUpdateData.trialStartDate = storeUpdateData.trialStartDate || null;
         storeUpdateData.licenseProof = storeUpdateData.licenseProof || null;
-        
-        const { error } = await supabase.from('stores').update(storeUpdateData).eq('id', id);
-        if (error) handleSupabaseError({ error, data: null }, 'stores');
+        const { error: storeUpdateError } = await supabase.from('stores').update(storeUpdateData).eq('id', id);
+        if (storeUpdateError) throw new Error(`Failed to update store: ${storeUpdateError.message}`);
     }
     
-    // Insertion in correct order
+    // Insertion in correct order, gracefully skipping non-existent tables
     for (const tableName of tablesInOrder) {
         const dataToInsert = (jsonData as any)[tableName];
         if (dataToInsert && Array.isArray(dataToInsert) && dataToInsert.length > 0) {
@@ -539,19 +533,17 @@ export const restoreDatabase = async (content: string): Promise<{id: string} | n
             const chunkSize = 150;
             for (let i = 0; i < itemsWithStoreId.length; i += chunkSize) {
                 const chunk = itemsWithStoreId.slice(i, i + chunkSize);
-                const { error } = await supabase.from(tableName).insert(chunk);
-
-                if (error) {
-                    if (error.code === '42P01') { // undefined_table
-                         console.warn(`Table "${tableName}" does not exist, skipping insertion. Please check your DB schema.`);
-                         break; 
-                    } else if (error.code === '23503') { // foreign key violation
-                        console.error(`Foreign key violation inserting into ${tableName}.`, { chunk, error });
-                        throw new Error(`Erreur de restauration pour ${tableName}: une référence (ex: ID de produit, client) est introuvable. ${error.message}`);
-                    }
-                    else {
-                        console.error(`Error inserting into ${tableName}:`, error);
-                        throw new Error(`Erreur de restauration pour ${tableName}: ${error.message}`);
+                const { error: insertError } = await supabase.from(tableName).insert(chunk);
+                if (insertError) {
+                    if (insertError.code === '42P01') { 
+                         console.warn(`Table "${tableName}" does not exist, skipping insertion of its data.`);
+                         break; // Skip to next table
+                    } else if (insertError.code === '23503') {
+                        console.error(`Foreign key violation inserting into ${tableName}.`, { chunk, insertError });
+                        throw new Error(`Erreur de restauration pour ${tableName}: une référence (ex: ID de produit, client) est introuvable. Détails: ${insertError.details}`);
+                    } else {
+                        console.error(`Error inserting into ${tableName}:`, insertError);
+                        throw new Error(`Erreur de restauration pour ${tableName}: ${insertError.message}`);
                     }
                 }
             }
