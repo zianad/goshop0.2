@@ -33,6 +33,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ storeId, users, addUser
   const [storeIce, setStoreIce] = useState(store.ice || '');
   const [storeLogo, setStoreLogo] = useState(store.logo || '');
   const [logoPreview, setLogoPreview] = useState(store.logo || '');
+  const [isRestoreTextValid, setIsRestoreTextValid] = useState(true);
 
 
   const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -214,16 +215,37 @@ const UserManagement: React.FC<UserManagementProps> = ({ storeId, users, addUser
     }
     if (e.target) e.target.value = '';
   };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value.trim();
+    if (text === '') {
+        setIsRestoreTextValid(true); // Empty is not an error state
+        return;
+    }
+    // Simple but effective check for the most common copy-paste error
+    const isValid = text.startsWith('{') && text.endsWith('}');
+    setIsRestoreTextValid(isValid);
+  };
   
   const handleRestoreFromText = async () => {
     const restoreText = restoreTextRef.current?.value;
-    if (!restoreText || !restoreText.trim()) {
+    const text = restoreText?.trim() || '';
+
+    if (text === '') {
         alert(t('pasteBackupContent'));
         return;
     }
+    
+    const isValid = text.startsWith('{') && text.endsWith('}');
+    setIsRestoreTextValid(isValid);
+    if (!isValid) {
+        alert(t('jsonParseError'));
+        return;
+    }
+
     if (window.confirm(t('restoreConfirm'))) {
         try {
-            const restoredStoreInfo = await api.restoreDatabase(restoreText);
+            const restoredStoreInfo = await api.restoreDatabase(text);
             if (restoredStoreInfo) {
                 localStorage.setItem('pos-license', JSON.stringify({ storeId: restoredStoreInfo.id }));
                 alert(t('restoreSuccess'));
@@ -232,7 +254,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ storeId, users, addUser
                 throw new Error('restoreError');
             }
         } catch (err: any) {
-            if (err.message === 'jsonParseError') {
+             if (err.message === 'jsonParseError') {
                 alert(t('jsonParseError'));
             } else {
                 const errorMessageKey = (err.message || 'restoreError') as keyof typeof translations.fr;
@@ -387,10 +409,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ storeId, users, addUser
             
             <textarea
                 ref={restoreTextRef}
+                onChange={handleTextareaChange}
                 placeholder={t('pasteBackupContent')}
-                className="w-full h-48 p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600 font-mono text-xs"
+                className={`w-full h-48 p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 font-mono text-xs transition-colors ${!isRestoreTextValid ? 'border-red-500 ring-2 ring-red-300 dark:border-red-600' : 'dark:border-slate-600'}`}
                 aria-label={t('pasteBackupContent')}
             />
+            {!isRestoreTextValid && (
+                <p className="text-red-500 text-sm mt-2">{t('jsonParseError')}</p>
+            )}
             
             <button
                 onClick={handleRestoreFromText}
