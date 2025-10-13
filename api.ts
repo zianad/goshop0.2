@@ -609,28 +609,36 @@ const getStoreIdFromLicense = async (): Promise<string | null> => {
 
 export const restoreDatabase = async (jsonContent: string): Promise<Store | null> => {
     let backup;
-    let contentToParse = jsonContent.trim(); // Trim whitespace from the start and end
+    const contentToParse = jsonContent.trim();
 
-    // Regex to find and replace both "image" and "logo" data URIs or null values
     const imageAndLogoRegex = /"(image|logo)":\s*("data:image[^"]*"|null)/g;
-    
+
+    const isLikelyBase64 = (str: string) => {
+        if (str.startsWith('{') || str.startsWith('[')) {
+            return false;
+        }
+        if (/[^A-Za-z0-9+/=\s]/.test(str)) {
+            return false;
+        }
+        return true;
+    };
 
     try {
-        // First, try parsing after sanitizing (for raw JSON)
-        let sanitizedContent = contentToParse.replace(imageAndLogoRegex, '"$1": ""');
+        const sanitizedContent = contentToParse.replace(imageAndLogoRegex, '"$1": ""');
         backup = JSON.parse(sanitizedContent);
     } catch (e) {
-        // If it fails, it might be Base64 encoded.
-        try {
-            const decodedContent = atob(contentToParse);
-            // Also sanitize the decoded content
-            let sanitizedDecodedContent = decodedContent.replace(imageAndLogoRegex, '"$1": ""');
-            backup = JSON.parse(sanitizedDecodedContent);
-// FIX: Explicitly type the caught error variable to `any` to prevent TypeScript from inferring it as `unknown`, which would cause a type error. This ensures compatibility with stricter compiler options like `useUnknownInCatchVariables`.
-        } catch (decodeError: any) {
-            // If all parsing attempts fail, the file is likely corrupt.
-            console.error("JSON parsing and Base64 decoding both failed:", decodeError);
-            throw new Error('restoreError');
+        if (isLikelyBase64(contentToParse)) {
+            try {
+                const decodedContent = atob(contentToParse);
+                const sanitizedDecodedContent = decodedContent.replace(imageAndLogoRegex, '"$1": ""');
+                backup = JSON.parse(sanitizedDecodedContent);
+            } catch (decodeError: any) {
+                console.error("Base64 decoding or parsing failed:", decodeError);
+                throw new Error('restoreError');
+            }
+        } else {
+             console.error("JSON parsing failed, and content is not Base64:", e);
+             throw new Error('jsonParseError');
         }
     }
 
