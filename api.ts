@@ -1,575 +1,553 @@
-
 import { supabase } from './supabaseClient';
-import type {
-  Store,
-  User,
-  Product,
-  ProductVariant,
-  Sale,
-  Expense,
-  Return,
-  Customer,
-  Supplier,
-  Category,
-  Purchase,
-  StockBatch,
-  CartItem,
-  StoreTypeMap,
-} from './types';
+import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, Return, CartItem, StockBatch, StoreTypeMap, PurchaseItem, VariantFormData } from './types';
 
-// Helper function to handle Supabase errors
-const handleSupabaseError = ({ error, data }: { error: any; data: any }, entityName?: string) => {
-  if (error) {
-    console.error(`Error with ${entityName || 'request'}:`, error);
-    if (error.message.includes("violates row-level security policy")) {
-        throw new Error(`Permission denied for ${entityName || 'operation'}. Check RLS policies in Supabase.`);
+// Helper to convert keys from snake_case to camelCase
+const toCamel = (s: string) => s.replace(/([-_][a-z])/ig, ($1) => $1.toUpperCase().replace('-', '').replace('_', ''));
+
+const snakeToCamel = <T>(obj: any): T => {
+    if (Array.isArray(obj)) {
+        return obj.map(v => snakeToCamel(v)) as any;
+    } else if (obj !== null && typeof obj === 'object') {
+        return Object.keys(obj).reduce((acc, key) => {
+            (acc as any)[toCamel(key)] = snakeToCamel(obj[key]);
+            return acc;
+        }, {} as T);
     }
-    if (error.code === '23503') { // foreign key violation
-        if (entityName === 'customers') throw new Error('customerDeleteErrorHasDebt');
-        if (entityName === 'suppliers') throw new Error('supplierDeleteErrorHasDebt');
-        if (entityName === 'categories') throw new Error('categoryDeleteError');
-    }
-    throw new Error(error.message);
-  }
-  return data;
+    return obj;
 };
 
-// =================================================================
-// Store & Auth Functions
-// =================================================================
+// Helper to convert keys from camelCase to snake_case for insertion/updates
+const toSnake = (s: string) => s.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+
+const camelToSnake = (obj: any): any => {
+    if (Array.isArray(obj)) {
+        return obj.map(v => camelToSnake(v));
+    } else if (obj !== null && typeof obj === 'object') {
+        return Object.keys(obj).reduce((acc, key) => {
+            (acc as any)[toSnake(key)] = camelToSnake(obj[key]);
+            return acc;
+        }, {} as any);
+    }
+    return obj;
+};
+
+
+// AUTH & STORE
+export const getStoreByLicenseKey = async (licenseKey: string): Promise<Store | null> => {
+    const { data, error } = await supabase.from('stores').select('*').eq('license_key', licenseKey).single();
+    if (error) {
+        if (error.code === 'PGRST116') { // "PostgREST error" "No rows found"
+            return null;
+        }
+        throw error;
+    }
+    return data ? snakeToCamel(data) : null;
+};
 
 export const getStoreById = async (storeId: string): Promise<Store | null> => {
-  const { data, error } = await supabase.from('stores').select('*').eq('id', storeId).single();
-  if (error && error.code !== 'PGRST116') { // PGRST116: "The result contains 0 rows"
-    handleSupabaseError({ error, data }, 'stores');
-  }
-  return data;
-};
-
-export const getStoreByLicenseKey = async (licenseKey: string): Promise<Store | null> => {
-  const { data, error } = await supabase.from('stores').select('*').eq('licenseKey', licenseKey).single();
-  if (error && error.code !== 'PGRST116') {
-      handleSupabaseError({error, data}, 'stores');
-  }
-  return data;
-};
-
-export const getAllStores = async (): Promise<Store[]> => {
-    const { data, error } = await supabase.from('stores').select('*');
-    return handleSupabaseError({ error, data }, 'stores');
-};
-
-export const updateStore = async (store: Partial<Store> & { id: string }): Promise<void> => {
-    const { error } = await supabase.from('stores').update(store).eq('id', store.id);
-    handleSupabaseError({ error, data: null }, 'stores');
-};
-
-export const verifyAndActivateStoreWithCode = async (storeId: string, activationCode: string): Promise<boolean> => {
-    const { data, error } = await supabase.rpc('activate_store_with_code', {
-        p_store_id: storeId,
-        p_activation_code: activationCode
-    });
-    
+    const { data, error } = await supabase.from('stores').select('*').eq('id', storeId).single();
     if (error) {
-        console.error("RPC Error:", error);
-        throw new Error('invalidActivationCode');
+        console.error('Error fetching store by ID:', error);
+        return null;
     }
-
-    return data;
-};
-
-
-export const createStoreAndAdmin = async (
-    name: string, 
-    logo: string,
-    adminPassword: string,
-    adminEmail: string,
-    trialDurationDays: number,
-    address: string,
-    ice: string,
-    enableAiReceiptScan: boolean
-) => {
-    const { data, error } = await supabase.rpc('create_store_and_admin', {
-        p_store_name: name,
-        p_store_logo: logo,
-        p_admin_password: adminPassword,
-        p_admin_email: adminEmail,
-        p_trial_duration_days: trialDurationDays,
-        p_address: address,
-        p_ice: ice,
-        p_enable_ai_scan: enableAiReceiptScan,
-    });
-    
-    if (error) {
-        console.error('Error creating store and admin:', error);
-        throw new Error(error.message);
-    }
-    
-    return { licenseKey: data };
-};
-
-export const deleteStore = async (storeId: string): Promise<void> => {
-    const { error } = await supabase.rpc('delete_store_and_data', { p_store_id: storeId });
-    if (error) {
-        console.error('Error deleting store:', error);
-        throw new Error(error.message);
-    }
+    return data ? snakeToCamel(data) : null;
 };
 
 export const login = async (store: Store, secret: string): Promise<{ user: User, store: Store }> => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('storeId', store.id)
-      .or(`password.eq.${secret},pin.eq.${secret}`)
-      .single();
-
-    if (error || !data) {
-        throw new Error('invalidCredentialsError');
-    }
-    
     if (!store.isActive) {
         throw new Error('storeDisabledError');
     }
 
-    return { user: data, store };
-};
-
-// =================================================================
-// User Functions
-// =================================================================
-
-export const getAllUsers = async (): Promise<User[]> => {
-    const { data, error } = await supabase.from('users').select('*');
-    return handleSupabaseError({ error, data }, 'users');
-};
-
-export const getAdminUserForStore = async (storeId: string): Promise<User | null> => {
-    const { data, error } = await supabase
+    const { data: users, error } = await supabase
         .from('users')
         .select('*')
-        .eq('storeId', storeId)
-        .eq('role', 'admin')
-        .single();
-    if (error && error.code !== 'PGRST116') {
-        handleSupabaseError({error, data}, 'users');
+        .eq('store_id', store.id);
+
+    if (error) throw error;
+
+    const user = users.find(u => (u.role === 'admin' && u.password === secret) || (u.role === 'seller' && u.pin === secret));
+    
+    if (user) {
+        return { user: snakeToCamel(user), store };
+    } else {
+        throw new Error('invalidCredentialsError');
     }
-    return data;
 };
 
-export const addUser = async (user: Omit<User, 'id'>): Promise<User | undefined> => {
-    const { data, error } = await supabase.from('users').insert(user).select().single();
-    return handleSupabaseError({ error, data }, 'users');
-};
+export const verifyAndActivateStoreWithCode = async (storeId: string, code: string): Promise<boolean> => {
+    const MASTER_SECRET_KEY = 'GoShop-Activation-Key-Abzn-Secret-2024';
 
-export const updateUser = async (user: User): Promise<void> => {
-    const { error } = await supabase.from('users').update(user).eq('id', user.id);
-    handleSupabaseError({ error, data: null }, 'users');
-};
+    if (!code.startsWith('PERM-')) return false;
 
-export const deleteUser = async (id: string): Promise<void> => {
-    const { error } = await supabase.from('users').delete().eq('id', id);
-    handleSupabaseError({ error, data: null }, 'users');
-};
+    try {
+        const decoded = atob(code.substring(5));
+        const [decodedStoreId, decodedSecret] = decoded.split('::');
 
-// =================================================================
-// Cart Functions
-// =================================================================
+        if (decodedStoreId === storeId && decodedSecret === MASTER_SECRET_KEY) {
+            const { error } = await supabase
+                .from('stores')
+                .update({ trial_start_date: null, is_active: true })
+                .eq('id', storeId);
+            
+            if (error) throw error;
+            return true;
+        }
+        return false;
+    } catch (e) {
+        console.error("Activation code verification failed", e);
+        return false;
+    }
+}
 
+
+// CART
 export const loadCart = async (storeId: string, userId: string): Promise<CartItem[]> => {
-  const { data, error } = await supabase
-    .from('carts')
-    .select('cart_data')
-    .eq('store_id', storeId)
-    .eq('user_id', userId)
-    .single();
-  
-  if (error && error.code !== 'PGRST116') {
-      handleSupabaseError({ error, data }, 'carts');
-  }
-
-  return data?.cart_data || [];
+    const { data, error } = await supabase
+        .from('carts')
+        .select('cart_data')
+        .eq('store_id', storeId)
+        .eq('user_id', userId)
+        .single();
+    if (error || !data) {
+        return [];
+    }
+    return data.cart_data as CartItem[] || [];
 };
 
 export const saveCart = async (storeId: string, userId: string, cart: CartItem[]): Promise<void> => {
-  const { error } = await supabase
-    .from('carts')
-    .upsert({ store_id: storeId, user_id: userId, cart_data: cart }, { onConflict: 'store_id, user_id' });
-  
-  handleSupabaseError({ error, data: null }, 'carts');
+    const { error } = await supabase
+        .from('carts')
+        .upsert({ store_id: storeId, user_id: userId, cart_data: cart }, { onConflict: 'store_id, user_id' });
+
+    if (error) {
+        console.error("Error saving cart:", error);
+    }
 };
 
 export const clearCartFromDB = async (storeId: string, userId: string): Promise<void> => {
     await saveCart(storeId, userId, []);
 };
 
-// =================================================================
-// Data Fetching for a Store
-// =================================================================
 
+// DATA FETCHING
 export const getStoreData = async (storeId: string): Promise<Partial<StoreTypeMap>> => {
-    const tableNames: (keyof StoreTypeMap)[] = [
-        'products', 'productVariants', 'sales', 'expenses', 'customers', 
-        'suppliers', 'returns', 'categories', 'purchases', 'stockBatches'
-    ];
+    const tableNames: (keyof StoreTypeMap)[] = ['products', 'productVariants', 'sales', 'expenses', 'customers', 'suppliers', 'returns', 'categories', 'purchases', 'stockBatches'];
     
-    const promises = tableNames.map(tableName => 
-        supabase.from(tableName).select('*').eq('storeId', storeId)
-    );
+    const queries = tableNames.map(tableName => {
+        const snakeCaseTable = toSnake(tableName);
+        return supabase.from(snakeCaseTable).select('*').eq('store_id', storeId);
+    });
 
-    const results = await Promise.all(promises);
+    const results = await Promise.all(queries);
+    
     const data: Partial<StoreTypeMap> = {};
-    let hasError = false;
-
-    results.forEach((res, index) => {
-        if (res.error) {
-            // Ignore error if table doesn't exist, it might be a new schema feature
-            if (res.error.code !== '42P01') { // 42P01: undefined_table
-              console.error(`Error fetching ${tableNames[index]}:`, res.error);
-              hasError = true;
-            } else {
-              console.warn(`Table "${tableNames[index]}" not found, skipping.`);
-              (data as any)[tableNames[index]] = [];
-            }
+    results.forEach((result, index) => {
+        if (result.error) {
+            console.error(`Error fetching ${tableNames[index]}:`, result.error);
+            (data as any)[tableNames[index]] = [];
         } else {
-            const key = tableNames[index];
-            (data as any)[key] = res.data;
+            (data as any)[tableNames[index]] = snakeToCamel(result.data);
         }
     });
 
-    if (hasError) {
-        throw new Error('Failed to fetch some store data.');
-    }
-
     return data;
 };
 
-// =================================================================
-// Product & Stock Functions
-// =================================================================
-
-export const addProduct = async (
-    productData: Omit<Product, 'id'>, 
-    variantsData: (Omit<ProductVariant, 'id' | 'productId' | 'storeId'> & { stockQuantity?: number })[]
-): Promise<{ product: Product, variants: ProductVariant[] }> => {
-    const { data, error } = await supabase.rpc('create_product_with_variants', {
-        p_product_data: productData,
-        p_variants_data: variantsData,
-    });
-
-    if (error) {
-        console.error('Error in RPC create_product_with_variants', error);
-        throw new Error(error.message);
-    }
-    
-    return data;
+// SUPER ADMIN
+export const getAllStores = async (): Promise<Store[]> => {
+    const { data, error } = await supabase.from('stores').select('*');
+    if (error) throw error;
+    return snakeToCamel(data);
 };
 
-export const updateProduct = async (
-    productData: Product, 
-    variantsData: (Partial<ProductVariant> & { stockQuantity?: number })[]
-): Promise<void> => {
-    const { error } = await supabase.rpc('update_product_with_variants', {
-        p_product_data: productData,
-        p_variants_data: variantsData,
-    });
-    
+export const getAllUsers = async (): Promise<User[]> => {
+    const { data, error } = await supabase.from('users').select('*');
+    if (error) throw error;
+    return snakeToCamel(data);
+};
+
+export const createStoreAndAdmin = async (name: string, logo: string | undefined, adminPassword: string, adminEmail: string | undefined, trialDurationDays: number, address: string | undefined, ice: string | undefined, enableAiReceiptScan: boolean): Promise<{ store: Store, user: User, licenseKey: string }> => {
+    const licenseKey = crypto.randomUUID();
+    const storePayload = {
+        name,
+        logo,
+        license_key: licenseKey,
+        is_active: false,
+        trial_duration_days: trialDurationDays,
+        address,
+        ice,
+        enable_ai_receipt_scan: enableAiReceiptScan,
+    };
+    const { data: storeData, error: storeError } = await supabase.from('stores').insert(storePayload).select().single();
+    if (storeError) throw storeError;
+
+    const store = snakeToCamel<Store>(storeData);
+
+    const adminPayload = {
+        name: 'admin',
+        password: adminPassword,
+        email: adminEmail,
+        role: 'admin',
+        store_id: store.id,
+    };
+    const { data: userData, error: userError } = await supabase.from('users').insert(adminPayload).select().single();
+    if (userError) {
+        // Rollback store creation if user creation fails
+        await supabase.from('stores').delete().eq('id', store.id);
+        throw userError;
+    }
+    const user = snakeToCamel<User>(userData);
+
+    return { store, user, licenseKey };
+};
+
+export const deleteStore = async (storeId: string): Promise<void> => {
+    // Assuming DB has cascade delete on store_id FKs
+    const { error } = await supabase.from('stores').delete().eq('id', storeId);
+    if (error) throw error;
+};
+
+export const updateStore = async (store: Partial<Store>): Promise<void> => {
+    const { error } = await supabase.from('stores').update(camelToSnake(store)).eq('id', store.id);
+    if (error) throw error;
+};
+
+export const getAdminUserForStore = async (storeId: string): Promise<User | null> => {
+    const { data, error } = await supabase.from('users').select('*').eq('store_id', storeId).eq('role', 'admin').maybeSingle();
     if (error) {
-        console.error('Error in RPC update_product_with_variants', error);
-        throw new Error(error.message);
+      throw error;
+    }
+    return data ? snakeToCamel(data) : null;
+};
+
+
+// PRODUCT/SERVICE
+export const addProduct = async (productData: Omit<Product, 'id'>, variantsData: (Omit<VariantFormData, 'stockQuantity'>)[]): Promise<{ product: Product, variants: ProductVariant[] }> => {
+    // 1. Add product
+    const { data: newProductData, error: productError } = await supabase.from('products').insert(camelToSnake(productData)).select().single();
+    if (productError) throw productError;
+    const newProduct = snakeToCamel<Product>(newProductData);
+
+    if (!variantsData || variantsData.length === 0) {
+        return { product: newProduct, variants: [] };
+    }
+    
+    // 2. Add variants
+    const variantsToInsert = variantsData.map(({ ...variant }) => ({
+        ...camelToSnake(variant),
+        product_id: newProduct.id,
+        store_id: newProduct.storeId,
+    }));
+    const { data: newVariantsData, error: variantsError } = await supabase.from('product_variants').insert(variantsToInsert).select();
+    if (variantsError) throw variantsError;
+    const newVariants = snakeToCamel<ProductVariant[]>(newVariantsData);
+
+    return { product: newProduct, variants: newVariants };
+};
+
+export const updateProduct = async (productData: Product, variantsData: (VariantFormData)[]): Promise<void> => {
+    // 1. Update product
+    const { error: productError } = await supabase.from('products').update(camelToSnake(productData)).eq('id', productData.id);
+    if (productError) throw productError;
+
+    // 2. Get existing variants from DB
+    const { data: existingVariantsData, error: fetchError } = await supabase.from('product_variants').select('id').eq('product_id', productData.id);
+    if (fetchError) throw fetchError;
+    const existingVariantIds = existingVariantsData.map(v => v.id);
+    
+    // 3. Upsert variants
+    const variantsToUpsert = variantsData.map(({ stockQuantity, ...variant }) => ({
+        ...camelToSnake(variant),
+        product_id: productData.id,
+        store_id: productData.storeId,
+    }));
+    
+    const { error: upsertError } = await supabase.from('product_variants').upsert(variantsToUpsert);
+    if (upsertError) throw upsertError;
+    
+    // 4. Delete variants that were removed
+    const newVariantIds = variantsData.map(v => v.id).filter(Boolean);
+    const variantsToDelete = existingVariantIds.filter(id => !newVariantIds.includes(id));
+    if (variantsToDelete.length > 0) {
+        const { error: deleteError } = await supabase.from('product_variants').delete().in('id', variantsToDelete);
+        if (deleteError) throw deleteError;
     }
 };
 
-export const deleteProduct = async (id: string): Promise<void> => {
-    const { error } = await supabase.from('products').delete().eq('id', id);
-    handleSupabaseError({ error, data: null }, 'products');
+export const deleteProduct = async (productId: string): Promise<void> => {
+    const { error } = await supabase.from('products').delete().eq('id', productId);
+    if (error) throw error;
 };
 
-export const addStockAndUpdateVariant = async (
-    storeId: string,
-    variantId: string,
-    quantity: number,
-    purchasePrice: number,
-    sellingPrice: number,
-    supplierId: string | undefined
-) => {
-    const { error } = await supabase.rpc('add_stock_and_update_variant', {
-        p_store_id: storeId,
-        p_variant_id: variantId,
-        p_quantity: quantity,
-        p_purchase_price: purchasePrice,
-        p_selling_price: sellingPrice,
-        p_supplier_id: supplierId,
+export const addStockAndUpdateVariant = async (storeId: string, variantId: string, quantity: number, purchasePrice: number, sellingPrice: number, supplierId: string | undefined): Promise<void> => {
+    // 1. Add stock batch
+    const { error: stockError } = await supabase.from('stock_batches').insert({
+        store_id: storeId,
+        variant_id: variantId,
+        quantity,
+        purchase_price: purchasePrice,
     });
-    if (error) {
-        console.error('Error adding stock:', error);
-        throw new Error(error.message);
+    if (stockError) throw stockError;
+
+    // 2. Update variant prices
+    const { error: variantError } = await supabase.from('product_variants').update({
+        purchase_price: purchasePrice,
+        price: sellingPrice
+    }).eq('id', variantId);
+    if (variantError) throw variantError;
+    
+    // 3. Create a purchase record for traceability
+    const { data: variantData } = await supabase.from('product_variants').select('*, products(name)').eq('id', variantId).single();
+    if (variantData) {
+        const v = snakeToCamel<ProductVariant & { products: { name: string } }>(variantData);
+        const purchase: Omit<Purchase, 'id'> = {
+            storeId: storeId,
+            supplierId: supplierId,
+            date: new Date().toISOString(),
+            items: [{
+                variantId: v.id,
+                productId: v.productId,
+                productName: v.products.name,
+                variantName: v.name,
+                quantity: quantity,
+                purchasePrice: purchasePrice
+            }],
+            totalAmount: quantity * purchasePrice,
+            reference: 'purchase_ref_stock_adjustment',
+            amountPaid: quantity * purchasePrice,
+            remainingAmount: 0,
+            paymentMethod: 'cash'
+        };
+        await addPurchase(purchase, false);
     }
 };
 
-// =================================================================
-// Sales & Returns
-// =================================================================
+// SALE / RETURN
+export const completeSale = async (storeId: string, cart: CartItem[], downPayment: number, customerId: string | undefined, finalTotal: number, userId: string): Promise<Sale> => {
+    const profit = cart.reduce((acc, item) => {
+        if (item.purchasePrice != null) {
+            return acc + (item.price - item.purchasePrice) * item.quantity;
+        }
+        return acc;
+    }, 0);
 
-export const completeSale = async (
-    storeId: string,
-    cart: CartItem[],
-    downPayment: number,
-    customerId: string | undefined,
-    finalTotal: number,
-    userId: string
-): Promise<Sale> => {
-    const { data, error } = await supabase.rpc('complete_sale', {
-        p_store_id: storeId,
-        p_user_id: userId,
-        p_cart_items: cart,
-        p_down_payment: downPayment,
-        p_customer_id: customerId,
-        p_final_total: finalTotal,
-    });
+    const sale: Omit<Sale, 'id'> = {
+        storeId,
+        userId,
+        date: new Date().toISOString(),
+        items: cart,
+        total: finalTotal,
+        downPayment,
+        remainingAmount: finalTotal - downPayment,
+        profit,
+        customerId
+    };
     
-    if (error) {
-        console.error('Error completing sale:', error);
-        throw new Error(error.message);
+    const { data, error } = await supabase.from('sales').insert(camelToSnake(sale)).select().single();
+    if (error) throw error;
+
+    // Update stock
+    const stockUpdates = cart.filter(item => item.type === 'good').map(item => ({
+        store_id: storeId,
+        variant_id: item.id,
+        quantity: -item.quantity,
+        purchase_price: item.purchasePrice || 0,
+    }));
+
+    if (stockUpdates.length > 0) {
+        const { error: stockError } = await supabase.from('stock_batches').insert(stockUpdates);
+        if (stockError) {
+            // Should ideally rollback sale insertion in a transaction
+            console.error('Stock update failed after sale:', stockError);
+        }
     }
-    
-    return data;
+
+    return snakeToCamel(data);
 };
 
-export const processReturn = async (
-    storeId: string,
-    itemsToReturn: CartItem[],
-    userId: string
-): Promise<Return> => {
-    const { data, error } = await supabase.rpc('process_return', {
-        p_store_id: storeId,
-        p_user_id: userId,
-        p_return_items: itemsToReturn,
-    });
+export const processReturn = async (storeId: string, itemsToReturn: CartItem[], userId: string): Promise<Return> => {
+    const refundAmount = itemsToReturn.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const profitLost = itemsToReturn.reduce((sum, item) => {
+        if (item.purchasePrice != null) {
+            return sum + (item.price - item.purchasePrice) * item.quantity;
+        }
+        return sum;
+    }, 0);
+
+    const returnData: Omit<Return, 'id'> = {
+        storeId,
+        userId,
+        date: new Date().toISOString(),
+        items: itemsToReturn,
+        refundAmount,
+        profitLost,
+    };
     
-    if (error) {
-        console.error('Error processing return:', error);
-        throw new Error(error.message);
+    const { data, error } = await supabase.from('returns').insert(camelToSnake(returnData)).select().single();
+    if (error) throw error;
+    
+    // Update stock
+    const stockUpdates = itemsToReturn.filter(item => item.type === 'good').map(item => ({
+        store_id: storeId,
+        variant_id: item.id,
+        quantity: item.quantity, // Positive quantity for return
+        purchase_price: item.purchasePrice || 0,
+    }));
+    
+    if (stockUpdates.length > 0) {
+        const { error: stockError } = await supabase.from('stock_batches').insert(stockUpdates);
+        if (stockError) console.error('Stock update failed after return:', stockError);
     }
 
-    return data;
+    return snakeToCamel(data);
 };
 
 export const deleteReturn = async (returnId: string): Promise<void> => {
     const { error } = await supabase.from('returns').delete().eq('id', returnId);
-    handleSupabaseError({ error, data: null }, 'returns');
+    if (error) throw error;
 };
 
 export const deleteAllReturns = async (storeId: string): Promise<void> => {
-    const { error } = await supabase.from('returns').delete().eq('storeId', storeId);
-    handleSupabaseError({ error, data: null }, 'returns');
+    const { error } = await supabase.from('returns').delete().eq('store_id', storeId);
+    if (error) throw error;
 };
+
 
 export const payCustomerDebt = async (customerId: string, amount: number): Promise<void> => {
-    const { error } = await supabase.rpc('pay_customer_debt', {
-        p_customer_id: customerId,
-        p_amount: amount,
-    });
+    let amountToApply = amount;
+    const { data: sales, error } = await supabase.from('sales').select('*').eq('customer_id', customerId).gt('remaining_amount', 0).order('date', { ascending: true });
 
-    if (error) {
-        console.error('Error paying customer debt:', error);
-        throw new Error(error.message);
+    if (error) throw error;
+    if (!sales) return;
+
+    for (const sale of sales) {
+        if (amountToApply <= 0) break;
+        const payment = Math.min(amountToApply, sale.remaining_amount);
+        
+        const { error: updateError } = await supabase
+            .from('sales')
+            .update({
+                remaining_amount: sale.remaining_amount - payment,
+                down_payment: sale.down_payment + payment,
+            })
+            .eq('id', sale.id);
+        
+        if (updateError) throw updateError;
+        amountToApply -= payment;
     }
 };
 
-// =================================================================
-// Expenses
-// =================================================================
-
-export const addExpense = async (expense: Omit<Expense, 'id'>): Promise<Expense | undefined> => {
-    const { data, error } = await supabase.from('expenses').insert(expense).select().single();
-    return handleSupabaseError({ error, data }, 'expenses');
+// EXPENSE
+export const addExpense = async (expense: Omit<Expense, 'id'>): Promise<Expense> => {
+    const { data, error } = await supabase.from('expenses').insert(camelToSnake(expense)).select().single();
+    if (error) throw error;
+    return snakeToCamel(data);
 };
-
 export const updateExpense = async (expense: Expense): Promise<void> => {
-    const { error } = await supabase.from('expenses').update(expense).eq('id', expense.id);
-    handleSupabaseError({ error, data: null }, 'expenses');
+    const { error } = await supabase.from('expenses').update(camelToSnake(expense)).eq('id', expense.id);
+    if (error) throw error;
+};
+export const deleteExpense = async (expenseId: string): Promise<void> => {
+    const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
+    if (error) throw error;
 };
 
-export const deleteExpense = async (id: string): Promise<void> => {
-    const { error } = await supabase.from('expenses').delete().eq('id', id);
-    handleSupabaseError({ error, data: null }, 'expenses');
+// CUSTOMER
+export const addCustomer = async (customer: Omit<Customer, 'id'>): Promise<Customer> => {
+    const { data, error } = await supabase.from('customers').insert(camelToSnake(customer)).select().single();
+    if (error) throw error;
+    return snakeToCamel(data);
+};
+export const deleteCustomer = async (customerId: string): Promise<void> => {
+    const { data, error: debtError } = await supabase.from('sales').select('remaining_amount').eq('customer_id', customerId);
+    if (debtError) throw debtError;
+
+    const totalDebt = data.reduce((sum, sale) => sum + sale.remaining_amount, 0);
+    if (totalDebt > 0) {
+        throw new Error('customerDeleteErrorHasDebt');
+    }
+    const { error } = await supabase.from('customers').delete().eq('id', customerId);
+    if (error) throw error;
 };
 
-// =================================================================
-// Customers
-// =================================================================
-export const addCustomer = async (customer: Omit<Customer, 'id'>): Promise<Customer | undefined> => {
-    const { data, error } = await supabase.from('customers').insert(customer).select().single();
-    return handleSupabaseError({ error, data }, 'customers');
+// SUPPLIER
+export const addSupplier = async (supplier: Omit<Supplier, 'id'>): Promise<Supplier> => {
+    const { data, error } = await supabase.from('suppliers').insert(camelToSnake(supplier)).select().single();
+    if (error) throw error;
+    return snakeToCamel(data);
+};
+export const deleteSupplier = async (supplierId: string): Promise<void> => {
+    const { data, error: debtError } = await supabase.from('purchases').select('remaining_amount').eq('supplier_id', supplierId);
+    if (debtError) throw debtError;
+    const totalDebt = data.reduce((sum, p) => sum + p.remaining_amount, 0);
+    if(totalDebt > 0) {
+        throw new Error('supplierDeleteErrorHasDebt');
+    }
+    const { error } = await supabase.from('suppliers').delete().eq('id', supplierId);
+    if (error) throw error;
 };
 
-export const deleteCustomer = async (id: string): Promise<void> => {
-    const { data, error } = await supabase.from('customers').delete().eq('id', id);
-    handleSupabaseError({ error, data }, 'customers');
+// CATEGORY
+export const addCategory = async (category: Omit<Category, 'id'>): Promise<Category> => {
+    const { data, error } = await supabase.from('categories').insert(camelToSnake(category)).select().single();
+    if (error) throw error;
+    return snakeToCamel(data);
 };
-
-// =================================================================
-// Suppliers
-// =================================================================
-export const addSupplier = async (supplier: Omit<Supplier, 'id'>): Promise<Supplier | undefined> => {
-    const { data, error } = await supabase.from('suppliers').insert(supplier).select().single();
-    return handleSupabaseError({ error, data }, 'suppliers');
-};
-
-export const deleteSupplier = async (id: string): Promise<void> => {
-    const { data, error } = await supabase.from('suppliers').delete().eq('id', id);
-    handleSupabaseError({ error, data }, 'suppliers');
-};
-
-
-// =================================================================
-// Categories
-// =================================================================
-export const addCategory = async (category: Omit<Category, 'id'>): Promise<Category | undefined> => {
-    const { data, error } = await supabase.from('categories').insert(category).select().single();
-    return handleSupabaseError({ error, data }, 'categories');
-};
-
 export const updateCategory = async (category: Category): Promise<void> => {
-    const { error } = await supabase.from('categories').update(category).eq('id', category.id);
-    handleSupabaseError({ error, data: null }, 'categories');
+    const { error } = await supabase.from('categories').update(camelToSnake(category)).eq('id', category.id);
+    if (error) throw error;
+};
+export const deleteCategory = async (categoryId: string): Promise<void> => {
+    // Check if category is used
+    const { data, error: checkError } = await supabase.from('products').select('id').eq('category_id', categoryId).limit(1);
+    if (checkError) throw checkError;
+    if (data && data.length > 0) {
+        throw new Error('categoryDeleteError');
+    }
+    const { error } = await supabase.from('categories').delete().eq('id', categoryId);
+    if (error) throw error;
 };
 
-export const deleteCategory = async (id: string): Promise<void> => {
-    const { data, error } = await supabase.from('categories').delete().eq('id', id);
-    handleSupabaseError({ error, data }, 'categories');
-};
+// PURCHASE
+export const addPurchase = async (purchase: Omit<Purchase, 'id'>, updateStock = true): Promise<void> => {
+    const { error } = await supabase.from('purchases').insert(camelToSnake(purchase));
+    if (error) throw error;
+    
+    if (updateStock) {
+        const stockBatches = purchase.items.map(item => ({
+            store_id: purchase.storeId,
+            variant_id: item.variantId,
+            quantity: item.quantity,
+            purchase_price: item.purchasePrice
+        }));
 
-// =================================================================
-// Purchases
-// =================================================================
+        if (stockBatches.length > 0) {
+            const { error: stockError } = await supabase.from('stock_batches').insert(stockBatches);
+            if (stockError) throw stockError;
+        }
 
-export const addPurchase = async (purchase: Omit<Purchase, 'id'>): Promise<void> => {
-    const { error } = await supabase.rpc('add_purchase_and_stock', {
-        p_purchase_data: purchase
-    });
-    if (error) {
-        console.error('Error in RPC add_purchase_and_stock:', error);
-        throw new Error(error.message);
+        // Also update purchase price on variants
+        for (const item of purchase.items) {
+            await supabase.from('product_variants').update({ purchase_price: item.purchasePrice }).eq('id', item.variantId);
+        }
     }
 };
-
 export const updatePurchase = async (purchase: Purchase): Promise<void> => {
-    const { error } = await supabase.from('purchases').update(purchase).eq('id', purchase.id);
-    handleSupabaseError({ error, data: null }, 'purchases');
+    const { error } = await supabase.from('purchases').update(camelToSnake(purchase)).eq('id', purchase.id);
+    if (error) throw error;
 };
 
-// =================================================================
-// Backup & Restore
-// =================================================================
-
-export const getDatabaseContents = async (): Promise<string> => {
-    const { data, error } = await supabase.rpc('backup_database');
-    if (error) {
-        console.error('Error backing up database:', error);
-        throw new Error(error.message);
-    }
-    // Pretty print the JSON with an indentation of 2 spaces
-    return JSON.stringify(data, null, 2);
+// USER
+export const addUser = async (user: Omit<User, 'id'>): Promise<User> => {
+    const { data, error } = await supabase.from('users').insert(camelToSnake(user)).select().single();
+    if (error) throw error;
+    return snakeToCamel(data);
 };
-
-
-export const restoreDatabase = async (content: string): Promise<{id: string} | null> => {
-    console.log("Starting database restore process...");
-    let jsonData;
-    try {
-        let sanitizedContent = content.replace(/"logo"\s*:\s*"data:image\/[^"]*"/g, '"logo": ""');
-        jsonData = JSON.parse(sanitizedContent);
-        console.log("JSON content parsed successfully.");
-    } catch (e) {
-        console.error("JSON Parse Error:", e);
-        throw new Error('jsonParseError');
-    }
-
-    if (!jsonData.stores || !Array.isArray(jsonData.stores) || jsonData.stores.length === 0) {
-        throw new Error('restoreError');
-    }
-    
-    const storeId = jsonData.stores[0]?.id;
-    if (!storeId) {
-        throw new Error('restoreError');
-    }
-    console.log(`Starting restore for store ID: ${storeId}`);
-
-    const tablesInOrder: (keyof StoreTypeMap)[] = [
-        'suppliers', 'customers', 'categories', 'users', 'products',
-        'productVariants', 'purchases', 'stockBatches', 'sales',
-        'returns', 'expenses'
-    ];
-
-    // --- DELETION PHASE ---
-    console.log("--- Starting Deletion Phase ---");
-    for (const tableName of [...tablesInOrder].reverse()) {
-        if (!jsonData[tableName]) {
-            console.log(`No data for table "${tableName}" in backup file. Skipping deletion.`);
-            continue;
-        }
-        console.log(`Attempting to delete data from ${tableName}...`);
-        const { error: deleteError } = await supabase.from(tableName).delete().eq('storeId', storeId);
-        
-        if (deleteError) {
-             if (deleteError.message.includes('relation') && deleteError.message.includes('does not exist')) {
-                 console.warn(`Table "${tableName}" does not exist in the database. Skipping deletion.`);
-            } else {
-                console.error(`Critical error deleting from ${tableName}:`, deleteError);
-                throw new Error(`Erreur lors du vidage de la table ${tableName}: ${deleteError.message}`);
-            }
-        } else {
-             console.log(`Successfully cleared ${tableName}.`);
-        }
-    }
-    
-    // --- STORE UPDATE PHASE ---
-    console.log("--- Starting Store Update Phase ---");
-    if (jsonData.stores && jsonData.stores.length > 0) {
-        const { id, ...storeUpdateData } = jsonData.stores[0];
-        storeUpdateData.trialStartDate = storeUpdateData.trialStartDate || null;
-        storeUpdateData.licenseProof = storeUpdateData.licenseProof || null;
-        const { error: storeUpdateError } = await supabase.from('stores').update(storeUpdateData).eq('id', id);
-        if (storeUpdateError) throw new Error(`Failed to update store: ${storeUpdateError.message}`);
-        console.log("Store details updated successfully.");
-    }
-    
-    // --- INSERTION PHASE ---
-    console.log("--- Starting Insertion Phase ---");
-    for (const tableName of tablesInOrder) {
-        const dataToInsert = (jsonData as any)[tableName];
-        
-        if (dataToInsert && Array.isArray(dataToInsert) && dataToInsert.length > 0) {
-            console.log(`Attempting to insert ${dataToInsert.length} records into ${tableName}...`);
-            const itemsWithStoreId = dataToInsert.map((item: any) => ({ ...item, storeId }));
-            
-            const chunkSize = 150;
-            for (let i = 0; i < itemsWithStoreId.length; i += chunkSize) {
-                const chunk = itemsWithStoreId.slice(i, i + chunkSize);
-                console.log(`  - Inserting chunk ${Math.floor(i / chunkSize) + 1} of ${Math.ceil(itemsWithStoreId.length / chunkSize)} for ${tableName}...`);
-                const { error: insertError } = await supabase.from(tableName).insert(chunk);
-                
-                if (insertError) {
-                     if (insertError.message.includes('relation') && insertError.message.includes('does not exist')) {
-                         console.warn(`Table "${tableName}" does not exist. Skipping insertion for this table.`);
-                         break; 
-                    } else if (insertError.code === '23503') { 
-                        console.error(`Foreign key violation inserting into ${tableName}.`, { chunk, insertError });
-                        throw new Error(`Erreur de restauration pour ${tableName}: une référence (ex: ID de produit, client) est introuvable. Détails: ${insertError.details}`);
-                    } else {
-                        console.error(`Critical error inserting into ${tableName}:`, insertError);
-                        throw new Error(`Erreur de restauration pour ${tableName}: ${insertError.message}`);
-                    }
-                }
-            }
-             console.log(`Successfully inserted all records for ${tableName}.`);
-        } else {
-             console.log(`No data to insert for ${tableName}, skipping.`);
-        }
-    }
-
-    console.log(`Restore completed successfully for store ID: ${storeId}`);
-    return { id: storeId };
+export const updateUser = async (user: User): Promise<void> => {
+    const { error } = await supabase.from('users').update(camelToSnake(user)).eq('id', user.id);
+    if (error) throw error;
+};
+export const deleteUser = async (userId: string): Promise<void> => {
+    const { error } = await supabase.from('users').delete().eq('id', userId);
+    if (error) throw error;
 };

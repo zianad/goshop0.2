@@ -4,7 +4,6 @@ import { translations } from '../translations';
 import * as api from '../api';
 import type { User, Store } from '../types';
 import { SunIcon, MoonIcon } from './Icons';
-import { areSupabaseCredentialsSet, supabase } from '../supabaseClient';
 
 type Language = 'fr' | 'ar';
 type Theme = 'light' | 'dark';

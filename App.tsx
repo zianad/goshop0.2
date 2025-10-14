@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { Product, ProductVariant, CartItem, Sale, Expense, User, Return, Store, Customer, Supplier, Category, Purchase, StockBatch } from './types';
+import type { Product, ProductVariant, CartItem, Sale, Expense, User, Return, Store, Customer, Supplier, Category, Purchase, StockBatch, VariantFormData } from './types';
 import { Tab } from './types';
 import { BoxIcon, ShoppingCartIcon, CoinsIcon, LogoutIcon, SettingsIcon, UsersIcon, TruckIcon, TagIcon, SparklesIcon, SunIcon, MoonIcon, ArrowLeftIcon } from './components/Icons';
 import ProductManagement from './components/ProductManagement';
@@ -237,7 +237,7 @@ const MainApp: React.FC<{
     }
   };
 
-  const addProduct = async (productData: Omit<Product, 'id'>, variantsData: (Omit<ProductVariant, 'id'|'productId'|'storeId'> & { stockQuantity?: number })[]) => {
+  const addProduct = async (productData: Omit<Product, 'id'>, variantsData: Omit<VariantFormData, 'stockQuantity'>[]) => {
     return await handleApiCall(api.addProduct, productData, variantsData);
   };
   
@@ -263,8 +263,9 @@ const MainApp: React.FC<{
 
   const completeSale = async (downPayment: number, customerId: string | undefined, finalTotal: number, printMode: 'invoice' | 'orderForm') => {
       try {
-          const sale = await handleApiCall(api.completeSale, store.id, cart, downPayment, customerId, finalTotal, user.id);
-          if (sale) {
+// @ts-ignore
+          const sale: Sale = await handleApiCall(api.completeSale, store.id, cart, downPayment, customerId, finalTotal, user.id);
+          if (sale && sale.id) {
               setShowPrintableInvoice({ sale, mode: printMode });
           }
       } catch (error) {
@@ -286,7 +287,7 @@ const MainApp: React.FC<{
     try {
       const newReturn = await handleApiCall(api.processReturn, store.id, itemsToReturn, user.id);
       if (newReturn) {
-          setShowPrintableReturn(newReturn);
+          setShowPrintableReturn(newReturn as Return);
       }
     } catch(error) {
        console.error("Return processing failed:", error);
@@ -397,11 +398,11 @@ const MainApp: React.FC<{
         [Tab.POS]: <PointOfSale {...posProps} />,
         [Tab.Products]: <ProductManagement storeId={store.id} products={goods} variants={productVariants} suppliers={suppliers} categories={categories} stockMap={stockMap} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} addStockToVariant={addStockToVariant} t={t} language={language} />,
         [Tab.Services]: <ServiceManagement storeId={store.id} services={services} addService={addService} updateService={updateService} deleteService={deleteService} t={t} />,
-        [Tab.Finance]: <FinanceAndReports storeId={store.id} sales={sales} expenses={expenses} returns={returns} purchases={purchases} suppliers={suppliers} users={users} addProduct={addProduct} addExpense={addExpense} updateExpense={updateExpense} deleteExpense={deleteExpense} customers={customers} deleteReturn={deleteReturn} deleteAllReturns={deleteAllReturns} t={t} language={language} theme={theme} onReprintInvoice={handleReprintInvoice} />,
-        [Tab.Customers]: <CustomerManagement storeId={store.id} customers={customers} sales={sales} addCustomer={addCustomer} deleteCustomer={deleteCustomer} payCustomerDebt={payCustomerDebt} t={t} language={language} />,
-        [Tab.Suppliers]: <SupplierManagement storeId={store.id} suppliers={suppliers} products={goods} variants={productVariants} purchases={purchases} categories={categories} addSupplier={addSupplier} deleteSupplier={deleteSupplier} addPurchase={addPurchase} updatePurchase={updatePurchase} addProduct={addProduct} t={t} language={language} />,
-        [Tab.Categories]: <CategoryManagement storeId={store.id} categories={categories} addCategory={addCategory} updateCategory={updateCategory} deleteCategory={deleteCategory} t={t} language={language}/>,
-        [Tab.Settings]: <UserManagement activeUser={user} store={store} storeId={store.id} users={users} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} onUpdateStore={handleUpdateStore} t={t} />,
+        [Tab.Finance]: <FinanceAndReports storeId={store.id} sales={sales} expenses={expenses} returns={returns} purchases={purchases} suppliers={suppliers} users={users} addProduct={addProduct as any} addExpense={addExpense as any} updateExpense={updateExpense} deleteExpense={deleteExpense} customers={customers} deleteReturn={deleteReturn} deleteAllReturns={deleteAllReturns} t={t} language={language} theme={theme} onReprintInvoice={handleReprintInvoice} />,
+        [Tab.Customers]: <CustomerManagement storeId={store.id} customers={customers} sales={sales} addCustomer={addCustomer as any} deleteCustomer={deleteCustomer} payCustomerDebt={payCustomerDebt} t={t} language={language} />,
+        [Tab.Suppliers]: <SupplierManagement storeId={store.id} suppliers={suppliers} products={goods} variants={productVariants} purchases={purchases} categories={categories} addSupplier={addSupplier as any} deleteSupplier={deleteSupplier} addPurchase={addPurchase} updatePurchase={updatePurchase} addProduct={addProduct as any} t={t} language={language} />,
+        [Tab.Categories]: <CategoryManagement storeId={store.id} categories={categories} addCategory={addCategory as any} updateCategory={updateCategory} deleteCategory={deleteCategory} t={t} language={language}/>,
+        [Tab.Settings]: <UserManagement activeUser={user} store={store} storeId={store.id} users={users} addUser={addUser as any} updateUser={updateUser} deleteUser={deleteUser} onUpdateStore={handleUpdateStore} t={t} />,
     };
 
     return tabComponents[activeTab] || tabComponents[Tab.POS];

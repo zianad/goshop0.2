@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { Product, ProductVariant, CartItem, Customer, Category, Sale, User, Store } from '../types';
 import { TrashIcon, BarcodeIcon, PlusIcon, SparklesIcon } from './Icons';
 import { translations } from '../translations';
+// Fix: Use GoogleGenAI instead of the deprecated GoogleGenerativeAI
 import { GoogleGenAI, Type } from "@google/genai";
 
 // IMPORTANT: To enable AI receipt scanning, you must provide a Google Gemini API key here.
 // You can get one from Google AI Studio.
-const GEMINI_API_KEY = ""; // <-- Add your Gemini API Key here
+const GEMINI_API_KEY = process.env.API_KEY || ""; // <-- Add your Gemini API Key here
 
 type Language = 'fr' | 'ar';
 type TFunction = (key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => string;

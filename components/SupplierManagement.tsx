@@ -543,7 +543,7 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({ storeId, suppli
   const supplierDebts = useMemo(() => {
       const debts = new Map<string, number>();
       purchases.forEach(p => {
-          if (p.remainingAmount > 0) {
+          if (p.remainingAmount > 0 && p.supplierId) {
               const currentDebt = debts.get(p.supplierId) || 0;
               debts.set(p.supplierId, currentDebt + p.remainingAmount);
           }

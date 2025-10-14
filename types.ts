@@ -176,3 +176,16 @@ export interface StoreTypeMap {
   purchases: Purchase[];
   stockBatches: StockBatch[];
 }
+
+export type VariantFormData = {
+  id?: string;
+  name: string;
+  price: number;
+  priceSemiWholesale: number;
+  priceWholesale: number;
+  purchasePrice: number;
+  barcode?: string;
+  lowStockThreshold: number;
+  image: string;
+  stockQuantity: number;
+};

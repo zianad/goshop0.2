@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Product, ProductVariant, Supplier, Category } from '../types';
+import type { Product, ProductVariant, Supplier, Category, VariantFormData } from '../types';
 import { TrashIcon, FileDownIcon, PlusIcon, EditIcon, ChevronDownIcon, SearchIcon, BarcodeIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons';
 import { exportToPdf } from '../utils/helpers';
 import { translations } from '../translations';
@@ -7,19 +7,6 @@ import { PrintableBarcode } from './PrintableBarcode';
 
 type Language = 'fr' | 'ar';
 type TFunction = (key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => string;
-
-type VariantFormData = {
-  id?: string;
-  name: string;
-  price: number;
-  priceSemiWholesale: number;
-  priceWholesale: number;
-  purchasePrice: number;
-  barcode?: string;
-  lowStockThreshold: number;
-  image: string;
-  stockQuantity: number;
-};
 
 const AddStockModal: React.FC<{
   product: Product;
