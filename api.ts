@@ -475,17 +475,17 @@ export const getDatabaseContents = async (): Promise<string> => {
 
 
 export const restoreDatabase = async (content: string): Promise<{id: string} | null> => {
+    console.log("Starting database restore process...");
     let jsonData;
     try {
-        // Sanitize large data URI for logo to prevent parsing issues and keep JSON lightweight.
         let sanitizedContent = content.replace(/"logo"\s*:\s*"data:image\/[^"]*"/g, '"logo": ""');
         jsonData = JSON.parse(sanitizedContent);
+        console.log("JSON content parsed successfully.");
     } catch (e) {
         console.error("JSON Parse Error:", e);
         throw new Error('jsonParseError');
     }
 
-    // Basic validation of the backup file structure
     if (!jsonData.stores || !Array.isArray(jsonData.stores) || jsonData.stores.length === 0) {
         throw new Error('restoreError');
     }
@@ -494,8 +494,8 @@ export const restoreDatabase = async (content: string): Promise<{id: string} | n
     if (!storeId) {
         throw new Error('restoreError');
     }
+    console.log(`Starting restore for store ID: ${storeId}`);
 
-    // Define the order of operations to respect foreign key constraints
     const tablesInOrder: (keyof StoreTypeMap)[] = [
         'suppliers', 'customers', 'categories', 'users', 'products',
         'productVariants', 'purchases', 'stockBatches', 'sales',
@@ -503,55 +503,54 @@ export const restoreDatabase = async (content: string): Promise<{id: string} | n
     ];
 
     // --- DELETION PHASE ---
-    // Delete data in reverse order of insertion to avoid FK violations.
+    console.log("--- Starting Deletion Phase ---");
     for (const tableName of [...tablesInOrder].reverse()) {
+        console.log(`Attempting to delete data from ${tableName}...`);
         const { error: deleteError } = await supabase.from(tableName).delete().eq('storeId', storeId);
         
         if (deleteError) {
-            // Gracefully handle the case where a table doesn't exist in the target DB.
-            const isUndefinedTableError = deleteError.code === '42P01' || (deleteError.message && deleteError.message.includes('does not exist'));
-            if (isUndefinedTableError) {
-                 console.warn(`Table "${tableName}" does not exist in the database. Skipping deletion.`);
+             if (deleteError.message.includes('relation') && deleteError.message.includes('does not exist')) {
+                 console.warn(`Table "${tableName}" does not exist. Skipping deletion.`);
             } else {
-                // For any other deletion error, we must stop and inform the user.
                 console.error(`Critical error deleting from ${tableName}:`, deleteError);
                 throw new Error(`Erreur lors du vidage de la table ${tableName}: ${deleteError.message}`);
             }
+        } else {
+             console.log(`Successfully cleared ${tableName}.`);
         }
     }
     
     // --- STORE UPDATE PHASE ---
+    console.log("--- Starting Store Update Phase ---");
     if (jsonData.stores && jsonData.stores.length > 0) {
         const { id, ...storeUpdateData } = jsonData.stores[0];
-        // Ensure nullable fields are handled correctly
         storeUpdateData.trialStartDate = storeUpdateData.trialStartDate || null;
         storeUpdateData.licenseProof = storeUpdateData.licenseProof || null;
         const { error: storeUpdateError } = await supabase.from('stores').update(storeUpdateData).eq('id', id);
         if (storeUpdateError) throw new Error(`Failed to update store: ${storeUpdateError.message}`);
+        console.log("Store details updated successfully.");
     }
     
     // --- INSERTION PHASE ---
-    // Insert data in the correct order.
+    console.log("--- Starting Insertion Phase ---");
     for (const tableName of tablesInOrder) {
         const dataToInsert = (jsonData as any)[tableName];
         
-        // Check if the table exists in the JSON and has data
         if (dataToInsert && Array.isArray(dataToInsert) && dataToInsert.length > 0) {
-            // All data should be associated with the current storeId
+            console.log(`Attempting to insert ${dataToInsert.length} records into ${tableName}...`);
             const itemsWithStoreId = dataToInsert.map((item: any) => ({ ...item, storeId }));
             
-            // Insert data in chunks to handle large datasets
             const chunkSize = 150;
             for (let i = 0; i < itemsWithStoreId.length; i += chunkSize) {
                 const chunk = itemsWithStoreId.slice(i, i + chunkSize);
+                console.log(`  - Inserting chunk ${Math.floor(i / chunkSize) + 1} for ${tableName}...`);
                 const { error: insertError } = await supabase.from(tableName).insert(chunk);
                 
                 if (insertError) {
-                    const isUndefinedTableError = insertError.code === '42P01' || (insertError.message && insertError.message.includes('does not exist'));
-                    if (isUndefinedTableError) {
-                         console.warn(`Table "${tableName}" does not exist in the database. Skipping insertion.`);
-                         break; // Skip all chunks for this non-existent table
-                    } else if (insertError.code === '23503') { // Foreign key violation
+                     if (insertError.message.includes('relation') && insertError.message.includes('does not exist')) {
+                         console.warn(`Table "${tableName}" does not exist. Skipping insertion for this table.`);
+                         break; 
+                    } else if (insertError.code === '23503') { 
                         console.error(`Foreign key violation inserting into ${tableName}.`, { chunk, insertError });
                         throw new Error(`Erreur de restauration pour ${tableName}: une référence (ex: ID de produit, client) est introuvable. Détails: ${insertError.details}`);
                     } else {
@@ -560,8 +559,12 @@ export const restoreDatabase = async (content: string): Promise<{id: string} | n
                     }
                 }
             }
+             console.log(`Successfully inserted all records for ${tableName}.`);
+        } else {
+             console.log(`No data to insert for ${tableName}, skipping.`);
         }
     }
 
+    console.log(`Restore completed successfully for store ID: ${storeId}`);
     return { id: storeId };
 };
