@@ -5,9 +5,9 @@ import { translations } from '../translations';
 // Fix: Use GoogleGenAI instead of the deprecated GoogleGenerativeAI
 import { GoogleGenAI, Type } from "@google/genai";
 
-// IMPORTANT: To enable AI receipt scanning, you must provide a Google Gemini API key here.
-// You can get one from Google AI Studio.
-const GEMINI_API_KEY = process.env.API_KEY || ""; // <-- Add your Gemini API Key here
+// IMPORTANT: To enable AI receipt scanning, you must provide a Google Gemini API key.
+// The key is sourced from environment variables.
+const GEMINI_API_KEY = process.env.API_KEY;
 
 type Language = 'fr' | 'ar';
 type TFunction = (key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => string;
@@ -348,7 +348,8 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
             reader.onerror = error => reject(error);
             reader.readAsDataURL(file);
         });
-
+        
+        // Fix: Use new GoogleGenAI class with named apiKey parameter
         const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
         const imagePart = {
@@ -362,6 +363,7 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
             text: "From the provided receipt image, extract all purchase line items. For each item, provide its name (designation), quantity (quantite), and its unit price (prixHT). Return as a JSON array.",
         };
 
+        // Fix: Use the new ai.models.generateContent API
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: { parts: [imagePart, textPart] },
@@ -391,6 +393,7 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
             },
         });
         
+        // Fix: Use response.text instead of response.text()
         const jsonResponse = JSON.parse(response.text);
 
         if (!Array.isArray(jsonResponse)) {

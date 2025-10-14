@@ -1,359 +1,233 @@
 import { supabase } from './supabaseClient';
-import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, Return, CartItem, StockBatch, StoreTypeMap, PurchaseItem, VariantFormData } from './types';
+import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, Return, StockBatch, CartItem, StoreTypeMap, VariantFormData } from './types';
 
-// Helper to convert keys from snake_case to camelCase
-const toCamel = (s: string) => s.replace(/([-_][a-z])/ig, ($1) => $1.toUpperCase().replace('-', '').replace('_', ''));
-
-const snakeToCamel = <T>(obj: any): T => {
-    if (Array.isArray(obj)) {
-        return obj.map(v => snakeToCamel(v)) as any;
-    } else if (obj !== null && typeof obj === 'object') {
-        return Object.keys(obj).reduce((acc, key) => {
-            (acc as any)[toCamel(key)] = snakeToCamel(obj[key]);
-            return acc;
-        }, {} as T);
-    }
-    return obj;
-};
-
-// Helper to convert keys from camelCase to snake_case for insertion/updates
-const toSnake = (s: string) => s.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-
-const camelToSnake = (obj: any): any => {
-    if (Array.isArray(obj)) {
-        return obj.map(v => camelToSnake(v));
-    } else if (obj !== null && typeof obj === 'object') {
-        return Object.keys(obj).reduce((acc, key) => {
-            (acc as any)[toSnake(key)] = camelToSnake(obj[key]);
-            return acc;
-        }, {} as any);
-    }
-    return obj;
-};
-
-
-// AUTH & STORE
-export const getStoreByLicenseKey = async (licenseKey: string): Promise<Store | null> => {
-    const { data, error } = await supabase.from('stores').select('*').eq('license_key', licenseKey).single();
+// Helper to handle potential Supabase errors
+const handleSupabaseError = ({ error, data }: { error: any, data: any }, context: string) => {
     if (error) {
-        if (error.code === 'PGRST116') { // "PostgREST error" "No rows found"
-            return null;
-        }
+        console.error(`Error in ${context}:`, error);
         throw error;
     }
-    return data ? snakeToCamel(data) : null;
+    return data;
 };
+
+// =================================================================================
+// STORE & AUTH API
+// =================================================================================
 
 export const getStoreById = async (storeId: string): Promise<Store | null> => {
     const { data, error } = await supabase.from('stores').select('*').eq('id', storeId).single();
-    if (error) {
-        console.error('Error fetching store by ID:', error);
-        return null;
-    }
-    return data ? snakeToCamel(data) : null;
+    return handleSupabaseError({ data, error }, 'getStoreById');
+};
+
+export const getStoreByLicenseKey = async (licenseKey: string): Promise<Store | null> => {
+    const { data, error } = await supabase.from('stores').select('*').eq('licenseKey', licenseKey).single();
+    return handleSupabaseError({ data, error }, 'getStoreByLicenseKey');
+};
+
+export const updateStore = async (store: Partial<Store> & { id: string }): Promise<Store> => {
+    const { id, ...updateData } = store;
+    const { data, error } = await supabase.from('stores').update(updateData).eq('id', id).select().single();
+    return handleSupabaseError({ data, error }, 'updateStore');
 };
 
 export const login = async (store: Store, secret: string): Promise<{ user: User, store: Store }> => {
+    const { data, error } = await supabase.from('users')
+        .select('*')
+        .eq('storeId', store.id)
+        .or(`password.eq.${secret},pin.eq.${secret}`)
+        .single();
+    
+    if (error || !data) {
+        throw new Error('invalidCredentialsError');
+    }
     if (!store.isActive) {
         throw new Error('storeDisabledError');
     }
-
-    // FIX: The user's database schema is missing the `store_id` column on the `users` table.
-    // Removing the store_id filter to allow login based on a global user pool.
-    const { data: users, error } = await supabase
-        .from('users')
-        .select('*');
-
-    if (error) throw error;
-
-    const user = users.find(u => (u.role === 'admin' && u.password === secret) || (u.role === 'seller' && u.pin === secret));
-    
-    if (user) {
-        // Since user from DB won't have store_id, let's manually assign it from the logged-in store
-        // so the rest of the app can function. This is a workaround for the faulty schema.
-        const userWithStoreId = { ...snakeToCamel<User>(user), storeId: store.id };
-        return { user: userWithStoreId, store };
-    } else {
-        throw new Error('invalidCredentialsError');
-    }
+    return { user: data as User, store };
 };
+
 
 export const verifyAndActivateStoreWithCode = async (storeId: string, code: string): Promise<boolean> => {
+    const { data: store, error: storeError } = await supabase.from('stores').select('id').eq('id', storeId).single();
+    if(storeError || !store) throw new Error('storeNotFound');
+
+    // In a real app, the secret would be an env var on a serverless function
     const MASTER_SECRET_KEY = 'GoShop-Activation-Key-Abzn-Secret-2024';
-
-    if (!code.startsWith('PERM-')) return false;
-
+    let decoded: string;
     try {
-        const decoded = atob(code.substring(5));
-        const [decodedStoreId, decodedSecret] = decoded.split('::');
-
-        if (decodedStoreId === storeId && decodedSecret === MASTER_SECRET_KEY) {
-            const { error } = await supabase
-                .from('stores')
-                .update({ trial_start_date: null, is_active: true })
-                .eq('id', storeId);
-            
-            if (error) throw error;
-            return true;
-        }
-        return false;
+        decoded = atob(code.replace('PERM-', ''));
     } catch (e) {
-        console.error("Activation code verification failed", e);
         return false;
     }
+    const [decodedStoreId, decodedSecret] = decoded.split('::');
+
+    if (decodedStoreId === storeId && decodedSecret === MASTER_SECRET_KEY) {
+        await updateStore({ id: storeId, isActive: true, trialStartDate: null });
+        return true;
+    }
+
+    return false;
 }
 
+// =================================================================================
+// DATA FETCHING API
+// =================================================================================
 
-// CART
-export const loadCart = async (storeId: string, userId: string): Promise<CartItem[]> => {
-    const { data, error } = await supabase
-        .from('carts')
-        .select('cart_data')
-        .eq('store_id', storeId)
-        .eq('user_id', userId)
-        .single();
-    if (error || !data) {
-        return [];
+export const getStoreData = async (storeId: string): Promise<Partial<StoreTypeMap>> => {
+  const tableNames: (keyof StoreTypeMap)[] = [
+    'products', 'productVariants', 'sales', 'expenses', 'customers', 'suppliers', 'returns', 'categories', 'purchases', 'stockBatches'
+  ];
+  
+  const promises = tableNames.map(tableName => {
+      const snakeCaseTable = tableName.replace(/([A-Z])/g, "_$1").toLowerCase();
+      return supabase.from(snakeCaseTable).select('*').eq('storeId', storeId);
+  });
+  
+  const results = await Promise.all(promises);
+  
+  const data: Partial<StoreTypeMap> = {};
+  for (let i = 0; i < tableNames.length; i++) {
+    if (results[i].error) {
+      console.error(`Error fetching ${tableNames[i]}:`, results[i].error);
+      throw results[i].error;
     }
-    return data.cart_data as CartItem[] || [];
+    data[tableNames[i]] = results[i].data as any;
+  }
+  return data;
 };
 
-export const saveCart = async (storeId: string, userId: string, cart: CartItem[]): Promise<void> => {
-    const { error } = await supabase
-        .from('carts')
-        .upsert({ store_id: storeId, user_id: userId, cart_data: cart }, { onConflict: 'store_id, user_id' });
+// =================================================================================
+// CART API
+// =================================================================================
 
-    if (error) {
-        console.error("Error saving cart:", error);
-    }
+export const saveCart = async (storeId: string, userId: string, cart: CartItem[]): Promise<void> => {
+    const { error } = await supabase.from('user_carts').upsert({
+        id: `${storeId}-${userId}`,
+        storeId,
+        userId,
+        cart_data: cart
+    }, { onConflict: 'id' });
+    if(error) console.error("Error saving cart:", error);
+};
+
+export const loadCart = async (storeId: string, userId: string): Promise<CartItem[]> => {
+    const { data, error } = await supabase.from('user_carts').select('cart_data').eq('id', `${storeId}-${userId}`).single();
+    if (error || !data) return [];
+    return data.cart_data || [];
 };
 
 export const clearCartFromDB = async (storeId: string, userId: string): Promise<void> => {
     await saveCart(storeId, userId, []);
-};
+}
 
+// =================================================================================
+// PRODUCTS & STOCK API
+// =================================================================================
 
-// DATA FETCHING
-export const getStoreData = async (storeId: string): Promise<Partial<StoreTypeMap>> => {
-    const tableNames: (keyof StoreTypeMap)[] = ['products', 'productVariants', 'sales', 'expenses', 'customers', 'suppliers', 'returns', 'categories', 'purchases', 'stockBatches'];
-    
-    const queries = tableNames.map(tableName => {
-        const snakeCaseTable = toSnake(tableName);
-        return supabase.from(snakeCaseTable).select('*').eq('store_id', storeId);
-    });
-
-    const results = await Promise.all(queries);
-    
-    const data: Partial<StoreTypeMap> = {};
-    results.forEach((result, index) => {
-        if (result.error) {
-             // Gracefully handle missing tables like 'stockBatches'
-            if (result.error.code === '42P01') { // relation does not exist
-                console.warn(`Table "${toSnake(tableNames[index])}" does not exist, skipping.`);
-                (data as any)[tableNames[index]] = [];
-            } else {
-                console.error(`Error fetching ${tableNames[index]}:`, result.error);
-                (data as any)[tableNames[index]] = [];
-            }
-        } else {
-            (data as any)[tableNames[index]] = snakeToCamel(result.data);
-        }
-    });
-
-    return data;
-};
-
-// SUPER ADMIN
-export const getAllStores = async (): Promise<Store[]> => {
-    const { data, error } = await supabase.from('stores').select('*');
-    if (error) throw error;
-    return snakeToCamel(data);
-};
-
-export const getAllUsers = async (storeId?: string): Promise<User[]> => {
-    const { data, error } = await supabase.from('users').select('*');
-    if (error) throw error;
-    const users: User[] = snakeToCamel(data);
-    // If a storeId is provided, inject it into each user object as a workaround
-    // for the missing store_id column in the user's database.
-    if (storeId) {
-        return users.map(u => ({ ...u, storeId }));
-    }
-    return users;
-};
-
-export const createStoreAndAdmin = async (name: string, logo: string | undefined, adminPassword: string, adminEmail: string | undefined, trialDurationDays: number, address: string | undefined, ice: string | undefined, enableAiReceiptScan: boolean): Promise<{ store: Store, user: User, licenseKey: string }> => {
-    const licenseKey = crypto.randomUUID();
-    const storePayload = {
-        name,
-        logo,
-        license_key: licenseKey,
-        is_active: false,
-        trial_duration_days: trialDurationDays,
-        address,
-        ice,
-        enable_ai_receipt_scan: enableAiReceiptScan,
-    };
-    const { data: storeData, error: storeError } = await supabase.from('stores').insert(storePayload).select().single();
-    if (storeError) throw storeError;
-
-    const store = snakeToCamel<Store>(storeData);
-
-    // FIX: Removed store_id from payload as column doesn't exist in user's schema
-    const adminPayload = {
-        name: 'admin',
-        password: adminPassword,
-        email: adminEmail,
-        role: 'admin',
-    };
-    // @ts-ignore
-    const { data: userData, error: userError } = await supabase.from('users').insert(adminPayload).select().single();
-    if (userError) {
-        // Rollback store creation if user creation fails
-        await supabase.from('stores').delete().eq('id', store.id);
-        throw userError;
-    }
-    const user = snakeToCamel<User>(userData);
-
-    return { store, user, licenseKey };
-};
-
-export const deleteStore = async (storeId: string): Promise<void> => {
-    // Assuming DB has cascade delete on store_id FKs
-    const { error } = await supabase.from('stores').delete().eq('id', storeId);
-    if (error) throw error;
-};
-
-export const updateStore = async (store: Partial<Store>): Promise<void> => {
-    const { error } = await supabase.from('stores').update(camelToSnake(store)).eq('id', store.id);
-    if (error) throw error;
-};
-
-export const getAdminUserForStore = async (storeId: string): Promise<User | null> => {
-    // FIX: The user's database schema is missing the `store_id` column on the `users` table.
-    // Removing the filter on storeId and fetching any admin user.
-    const { data, error } = await supabase.from('users').select('*').eq('role', 'admin').maybeSingle();
-    if (error) {
-      throw error;
-    }
-    if (data) {
-        // Manually inject storeId for consistency within the app session.
-        const adminWithStoreId = { ...snakeToCamel<User>(data), storeId };
-        return adminWithStoreId;
-    }
-    return null;
-};
-
-// PRODUCT/SERVICE
-export const addProduct = async (productData: Omit<Product, 'id'>, variantsData: (Omit<VariantFormData, 'stockQuantity'>)[]): Promise<{ product: Product, variants: ProductVariant[] }> => {
-    // 1. Add product
-    const { data: newProductData, error: productError } = await supabase.from('products').insert(camelToSnake(productData)).select().single();
+export const addProduct = async (
+  productData: Omit<Product, 'id'>,
+  variantsData: (Omit<VariantFormData, 'id' | 'stockQuantity'> & { stockQuantity?: number })[]
+): Promise<{ product: Product; variants: ProductVariant[] }> => {
+    const { data: newProduct, error: productError } = await supabase.from('products').insert(productData).select().single();
     if (productError) throw productError;
-    const newProduct = snakeToCamel<Product>(newProductData);
 
-    if (!variantsData || variantsData.length === 0) {
-        return { product: newProduct, variants: [] };
-    }
-    
-    // 2. Add variants
-    const variantsToInsert = variantsData.map(({ ...variant }) => ({
-        ...camelToSnake(variant),
-        product_id: newProduct.id,
-        store_id: newProduct.storeId,
+    const variantsToCreate = variantsData.map(v => ({
+        ...v,
+        productId: newProduct.id,
+        storeId: productData.storeId,
     }));
-    const { data: newVariantsData, error: variantsError } = await supabase.from('product_variants').insert(variantsToInsert).select();
+    const { data: createdVariants, error: variantsError } = await supabase.from('product_variants').insert(variantsToCreate).select();
     if (variantsError) throw variantsError;
-    const newVariants = snakeToCamel<ProductVariant[]>(newVariantsData);
+    
+    const stockBatchesToCreate = variantsData
+      .map((v, i) => ({
+        storeId: productData.storeId,
+        variantId: createdVariants[i].id,
+        quantity: v.stockQuantity || 0,
+        purchasePrice: v.purchasePrice,
+        createdAt: new Date().toISOString(),
+      }))
+      .filter(sb => sb.quantity > 0);
 
-    return { product: newProduct, variants: newVariants };
+    if (stockBatchesToCreate.length > 0) {
+        const { error: stockError } = await supabase.from('stock_batches').insert(stockBatchesToCreate);
+        if (stockError) throw stockError;
+    }
+
+    return { product: newProduct, variants: createdVariants };
 };
 
-export const updateProduct = async (productData: Product, variantsData: (VariantFormData)[]): Promise<void> => {
-    // 1. Update product
-    const { error: productError } = await supabase.from('products').update(camelToSnake(productData)).eq('id', productData.id);
-    if (productError) throw productError;
+export const updateProduct = async (productData: Product, variantsData: VariantFormData[]): Promise<void> => {
+    const { error: productError } = await supabase.from('products').update(productData).eq('id', productData.id);
+    if(productError) throw productError;
 
-    // 2. Get existing variants from DB
-    const { data: existingVariantsData, error: fetchError } = await supabase.from('product_variants').select('id').eq('product_id', productData.id);
-    if (fetchError) throw fetchError;
-    const existingVariantIds = existingVariantsData.map(v => v.id);
+    const upsertPromises = variantsData.map(v => {
+        const { stockQuantity, ...variant } = v;
+        const variantToUpsert = {
+            ...variant,
+            storeId: productData.storeId,
+            productId: productData.id
+        };
+        return supabase.from('product_variants').upsert(variantToUpsert, { onConflict: 'id' });
+    });
     
-    // 3. Upsert variants
-    const variantsToUpsert = variantsData.map(({ stockQuantity, ...variant }) => ({
-        ...camelToSnake(variant),
-        product_id: productData.id,
-        store_id: productData.storeId,
-    }));
-    
-    const { error: upsertError } = await supabase.from('product_variants').upsert(variantsToUpsert);
-    if (upsertError) throw upsertError;
-    
-    // 4. Delete variants that were removed
-    const newVariantIds = variantsData.map(v => v.id).filter(Boolean);
-    const variantsToDelete = existingVariantIds.filter(id => !newVariantIds.includes(id));
-    if (variantsToDelete.length > 0) {
-        const { error: deleteError } = await supabase.from('product_variants').delete().in('id', variantsToDelete);
-        if (deleteError) throw deleteError;
-    }
+    await Promise.all(upsertPromises);
 };
 
 export const deleteProduct = async (productId: string): Promise<void> => {
     const { error } = await supabase.from('products').delete().eq('id', productId);
-    if (error) throw error;
+    if(error) throw error;
 };
 
 export const addStockAndUpdateVariant = async (storeId: string, variantId: string, quantity: number, purchasePrice: number, sellingPrice: number, supplierId: string | undefined): Promise<void> => {
-    // 1. Add stock batch
     const { error: stockError } = await supabase.from('stock_batches').insert({
-        store_id: storeId,
-        variant_id: variantId,
+        storeId,
+        variantId,
         quantity,
-        purchase_price: purchasePrice,
+        purchasePrice,
+        createdAt: new Date().toISOString()
     });
-    if (stockError && stockError.code !== '42P01') { // Ignore if table does not exist
-      throw stockError;
-    }
+    if(stockError) throw stockError;
 
-    // 2. Update variant prices
-    const { error: variantError } = await supabase.from('product_variants').update({
-        purchase_price: purchasePrice,
-        price: sellingPrice
-    }).eq('id', variantId);
-    if (variantError) throw variantError;
-    
-    // 3. Create a purchase record for traceability
-    const { data: variantData } = await supabase.from('product_variants').select('*, products(name)').eq('id', variantId).single();
-    if (variantData) {
-        const v = snakeToCamel<ProductVariant & { products: { name: string } }>(variantData);
-        const purchase: Omit<Purchase, 'id'> = {
-            storeId: storeId,
-            supplierId: supplierId,
-            date: new Date().toISOString(),
-            items: [{
-                variantId: v.id,
-                productId: v.productId,
-                productName: v.products.name,
-                variantName: v.name,
-                quantity: quantity,
-                purchasePrice: purchasePrice
-            }],
-            totalAmount: quantity * purchasePrice,
-            reference: 'purchase_ref_stock_adjustment',
-            amountPaid: quantity * purchasePrice,
-            remainingAmount: 0,
-            paymentMethod: 'cash'
-        };
-        await addPurchase(purchase, false);
+    const { error: variantError } = await supabase.from('product_variants').update({ purchasePrice, price: sellingPrice }).eq('id', variantId);
+    if(variantError) throw variantError;
+
+    // Create a purchase record
+    const { data: variant } = await supabase.from('product_variants').select('productId, name').eq('id', variantId).single();
+    if(variant) {
+        const { data: product } = await supabase.from('products').select('name').eq('id', variant.productId).single();
+        if(product) {
+            const purchaseItem: PurchaseItem = {
+                variantId,
+                productId: variant.productId,
+                productName: product.name,
+                variantName: variant.name,
+                quantity,
+                purchasePrice
+            };
+            await addPurchase({
+                storeId,
+                supplierId,
+                date: new Date().toISOString(),
+                items: [purchaseItem],
+                totalAmount: quantity * purchasePrice,
+                reference: 'purchase_ref_stock_adjustment',
+                amountPaid: quantity * purchasePrice,
+                remainingAmount: 0,
+                paymentMethod: 'cash',
+            });
+        }
     }
 };
 
-// SALE / RETURN
+// =================================================================================
+// SALES & RETURNS API
+// =================================================================================
+
 export const completeSale = async (storeId: string, cart: CartItem[], downPayment: number, customerId: string | undefined, finalTotal: number, userId: string): Promise<Sale> => {
     const profit = cart.reduce((acc, item) => {
-        if (item.purchasePrice != null) {
-            return acc + (item.price - item.purchasePrice) * item.quantity;
-        }
-        return acc;
+        const itemProfit = (item.price - (item.purchasePrice || item.price)) * item.quantity;
+        return acc + itemProfit;
     }, 0);
 
     const sale: Omit<Sale, 'id'> = {
@@ -368,35 +242,27 @@ export const completeSale = async (storeId: string, cart: CartItem[], downPaymen
         customerId
     };
     
-    const { data, error } = await supabase.from('sales').insert(camelToSnake(sale)).select().single();
-    if (error) throw error;
+    const { data: newSale, error } = await supabase.from('sales').insert(sale).select().single();
+    if(error) throw error;
+    
+    const stockUpdates = cart.filter(item => item.type === 'good' && !item.isCustom)
+      .map(item => ({ variantId: item.id, quantity: -item.quantity }));
 
-    // Update stock
-    const stockUpdates = cart.filter(item => item.type === 'good').map(item => ({
-        store_id: storeId,
-        variant_id: item.id,
-        quantity: -item.quantity,
-        purchase_price: item.purchasePrice || 0,
-    }));
-
-    if (stockUpdates.length > 0) {
-        const { error: stockError } = await supabase.from('stock_batches').insert(stockUpdates);
-        if (stockError && stockError.code !== '42P01') {
-            console.error('Stock update failed after sale:', stockError);
-        }
+    for (const update of stockUpdates) {
+        const { error: stockError } = await supabase.rpc('update_stock', {
+            p_variant_id: update.variantId,
+            p_quantity_change: update.quantity,
+            p_store_id: storeId
+        });
+        if(stockError) console.error(`Stock update failed for variant ${update.variantId}`, stockError);
     }
-
-    return snakeToCamel(data);
+    
+    return newSale;
 };
 
 export const processReturn = async (storeId: string, itemsToReturn: CartItem[], userId: string): Promise<Return> => {
     const refundAmount = itemsToReturn.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const profitLost = itemsToReturn.reduce((sum, item) => {
-        if (item.purchasePrice != null) {
-            return sum + (item.price - item.purchasePrice) * item.quantity;
-        }
-        return sum;
-    }, 0);
+    const profitLost = itemsToReturn.reduce((sum, item) => sum + ((item.price - (item.purchasePrice || item.price)) * item.quantity), 0);
 
     const returnData: Omit<Return, 'id'> = {
         storeId,
@@ -407,253 +273,208 @@ export const processReturn = async (storeId: string, itemsToReturn: CartItem[], 
         profitLost,
     };
     
-    const { data, error } = await supabase.from('returns').insert(camelToSnake(returnData)).select().single();
-    if (error) throw error;
+    const { data: newReturn, error } = await supabase.from('returns').insert(returnData).select().single();
+    if(error) throw error;
     
-    // Update stock
-    const stockUpdates = itemsToReturn.filter(item => item.type === 'good').map(item => ({
-        store_id: storeId,
-        variant_id: item.id,
-        quantity: item.quantity, // Positive quantity for return
-        purchase_price: item.purchasePrice || 0,
-    }));
-    
-    if (stockUpdates.length > 0) {
-        const { error: stockError } = await supabase.from('stock_batches').insert(stockUpdates);
-        if (stockError && stockError.code !== '42P01') console.error('Stock update failed after return:', stockError);
-    }
+    const stockUpdates = itemsToReturn.filter(item => item.type === 'good' && !item.isCustom)
+      .map(item => ({ variantId: item.id, quantity: item.quantity, purchasePrice: item.purchasePrice || 0 }));
 
-    return snakeToCamel(data);
+    const newStockBatches = stockUpdates.map(update => ({
+        storeId,
+        variantId: update.variantId,
+        quantity: update.quantity,
+        purchasePrice: update.purchasePrice,
+        createdAt: new Date().toISOString(),
+    }));
+
+    if(newStockBatches.length > 0) {
+        const { error: stockError } = await supabase.from('stock_batches').insert(newStockBatches);
+        if(stockError) console.error('Error adding stock back on return:', stockError);
+    }
+    
+    return newReturn;
 };
 
 export const deleteReturn = async (returnId: string): Promise<void> => {
     const { error } = await supabase.from('returns').delete().eq('id', returnId);
-    if (error) throw error;
+    if(error) throw error;
 };
 
 export const deleteAllReturns = async (storeId: string): Promise<void> => {
-    const { error } = await supabase.from('returns').delete().eq('store_id', storeId);
-    if (error) throw error;
+    const { error } = await supabase.from('returns').delete().eq('storeId', storeId);
+    if(error) throw error;
 };
-
 
 export const payCustomerDebt = async (customerId: string, amount: number): Promise<void> => {
-    let amountToApply = amount;
-    const { data: sales, error } = await supabase.from('sales').select('*').eq('customer_id', customerId).gt('remaining_amount', 0).order('date', { ascending: true });
-
-    if (error) throw error;
-    if (!sales) return;
-
-    for (const sale of sales) {
-        if (amountToApply <= 0) break;
-        const payment = Math.min(amountToApply, sale.remaining_amount);
-        
-        const { error: updateError } = await supabase
-            .from('sales')
-            .update({
-                remaining_amount: sale.remaining_amount - payment,
-                down_payment: sale.down_payment + payment,
-            })
-            .eq('id', sale.id);
-        
-        if (updateError) throw updateError;
-        amountToApply -= payment;
-    }
+    const { data: customer } = await supabase.from('customers').select('storeId').eq('id', customerId).single();
+    if(!customer) throw new Error("Customer not found");
+    // Create a negative sale to record the payment
+    const paymentRecord: Omit<Sale, 'id'> = {
+        storeId: customer.storeId,
+        userId: 'system', // or logged in user
+        date: new Date().toISOString(),
+        items: [],
+        total: -amount,
+        downPayment: -amount,
+        remainingAmount: 0,
+        profit: 0,
+        customerId,
+    };
+    const { error } = await supabase.from('sales').insert(paymentRecord);
+    if(error) throw error;
 };
 
-// EXPENSE
+
+// =================================================================================
+// EXPENSES API
+// =================================================================================
 export const addExpense = async (expense: Omit<Expense, 'id'>): Promise<Expense> => {
-    const { data, error } = await supabase.from('expenses').insert(camelToSnake(expense)).select().single();
-    if (error) throw error;
-    return snakeToCamel(data);
+    const { data, error } = await supabase.from('expenses').insert(expense).select().single();
+    return handleSupabaseError({data, error}, 'addExpense');
 };
 export const updateExpense = async (expense: Expense): Promise<void> => {
-    const { error } = await supabase.from('expenses').update(camelToSnake(expense)).eq('id', expense.id);
-    if (error) throw error;
+    const { error } = await supabase.from('expenses').update(expense).eq('id', expense.id);
+    if(error) throw error;
 };
-export const deleteExpense = async (expenseId: string): Promise<void> => {
-    const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
-    if (error) throw error;
+export const deleteExpense = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('expenses').delete().eq('id', id);
+    if(error) throw error;
 };
 
-// CUSTOMER
+
+// =================================================================================
+// CUSTOMERS API
+// =================================================================================
 export const addCustomer = async (customer: Omit<Customer, 'id'>): Promise<Customer> => {
-    const { data, error } = await supabase.from('customers').insert(camelToSnake(customer)).select().single();
-    if (error) throw error;
-    return snakeToCamel(data);
+    const { data, error } = await supabase.from('customers').insert(customer).select().single();
+    return handleSupabaseError({data, error}, 'addCustomer');
 };
-export const deleteCustomer = async (customerId: string): Promise<void> => {
-    const { data, error: debtError } = await supabase.from('sales').select('remaining_amount').eq('customer_id', customerId);
-    if (debtError) throw debtError;
+export const deleteCustomer = async (id: string): Promise<void> => {
+    const { data: sales, error: salesError } = await supabase.from('sales').select('remainingAmount').eq('customerId', id);
+    if (salesError) throw salesError;
+    const totalDebt = sales.reduce((sum, sale) => sum + sale.remainingAmount, 0);
 
-    const totalDebt = data.reduce((sum, sale) => sum + sale.remaining_amount, 0);
     if (totalDebt > 0) {
         throw new Error('customerDeleteErrorHasDebt');
     }
-    const { error } = await supabase.from('customers').delete().eq('id', customerId);
-    if (error) throw error;
+
+    const { error } = await supabase.from('customers').delete().eq('id', id);
+    if(error) throw error;
 };
 
-// SUPPLIER
+// =================================================================================
+// SUPPLIERS & PURCHASES API
+// =================================================================================
 export const addSupplier = async (supplier: Omit<Supplier, 'id'>): Promise<Supplier> => {
-    const { data, error } = await supabase.from('suppliers').insert(camelToSnake(supplier)).select().single();
-    if (error) throw error;
-    return snakeToCamel(data);
+    const { data, error } = await supabase.from('suppliers').insert(supplier).select().single();
+    return handleSupabaseError({data, error}, 'addSupplier');
 };
-export const deleteSupplier = async (supplierId: string): Promise<void> => {
-    const { data, error: debtError } = await supabase.from('purchases').select('remaining_amount').eq('supplier_id', supplierId);
-    if (debtError) throw debtError;
-    const totalDebt = data.reduce((sum, p) => sum + p.remaining_amount, 0);
+export const deleteSupplier = async (id: string): Promise<void> => {
+    const { data: purchases, error: purchaseError } = await supabase.from('purchases').select('remainingAmount').eq('supplierId', id);
+    if(purchaseError) throw purchaseError;
+
+    const totalDebt = purchases.reduce((sum, p) => sum + p.remainingAmount, 0);
     if(totalDebt > 0) {
         throw new Error('supplierDeleteErrorHasDebt');
     }
-    const { error } = await supabase.from('suppliers').delete().eq('id', supplierId);
-    if (error) throw error;
+    const { error } = await supabase.from('suppliers').delete().eq('id', id);
+    if(error) throw error;
 };
+export const addPurchase = async (purchase: Omit<Purchase, 'id'>): Promise<void> => {
+    const { error } = await supabase.from('purchases').insert(purchase);
+    if(error) throw error;
 
-// CATEGORY
-export const addCategory = async (category: Omit<Category, 'id'>): Promise<Category> => {
-    const { data, error } = await supabase.from('categories').insert(camelToSnake(category)).select().single();
-    if (error) throw error;
-    return snakeToCamel(data);
-};
-export const updateCategory = async (category: Category): Promise<void> => {
-    const { error } = await supabase.from('categories').update(camelToSnake(category)).eq('id', category.id);
-    if (error) throw error;
-};
-export const deleteCategory = async (categoryId: string): Promise<void> => {
-    // Check if category is used
-    const { data, error: checkError } = await supabase.from('products').select('id').eq('category_id', categoryId).limit(1);
-    if (checkError) throw checkError;
-    if (data && data.length > 0) {
-        throw new Error('categoryDeleteError');
-    }
-    const { error } = await supabase.from('categories').delete().eq('id', categoryId);
-    if (error) throw error;
-};
-
-// PURCHASE
-export const addPurchase = async (purchase: Omit<Purchase, 'id'>, updateStock = true): Promise<void> => {
-    const { error } = await supabase.from('purchases').insert(camelToSnake(purchase));
-    if (error) throw error;
-    
-    if (updateStock) {
-        const stockBatches = purchase.items.map(item => ({
-            store_id: purchase.storeId,
-            variant_id: item.variantId,
-            quantity: item.quantity,
-            purchase_price: item.purchasePrice
-        }));
-
-        if (stockBatches.length > 0) {
-            const { error: stockError } = await supabase.from('stock_batches').insert(stockBatches);
-            if (stockError && stockError.code !== '42P01') throw stockError;
-        }
-
-        // Also update purchase price on variants
-        for (const item of purchase.items) {
-            await supabase.from('product_variants').update({ purchase_price: item.purchasePrice }).eq('id', item.variantId);
-        }
-    }
+    // Add stock for each item
+    const stockBatches = purchase.items.map(item => ({
+        storeId: purchase.storeId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        purchasePrice: item.purchasePrice,
+        createdAt: purchase.date,
+    }));
+    const { error: stockError } = await supabase.from('stock_batches').insert(stockBatches);
+    if(stockError) throw stockError;
 };
 export const updatePurchase = async (purchase: Purchase): Promise<void> => {
-    const { error } = await supabase.from('purchases').update(camelToSnake(purchase)).eq('id', purchase.id);
-    if (error) throw error;
+    const { error } = await supabase.from('purchases').update(purchase).eq('id', purchase.id);
+    if(error) throw error;
 };
 
-// USER
+// =================================================================================
+// CATEGORIES API
+// =================================================================================
+export const addCategory = async (category: Omit<Category, 'id'>): Promise<Category> => {
+    const { data, error } = await supabase.from('categories').insert(category).select().single();
+    return handleSupabaseError({data, error}, 'addCategory');
+};
+export const updateCategory = async (category: Category): Promise<void> => {
+    const { error } = await supabase.from('categories').update(category).eq('id', category.id);
+    if(error) throw error;
+};
+export const deleteCategory = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('categories').delete().eq('id', id);
+    if(error) throw error;
+};
+
+// =================================================================================
+// USERS API (for settings)
+// =================================================================================
 export const addUser = async (user: Omit<User, 'id'>): Promise<User> => {
-    // FIX: The user's database schema is missing the `store_id` column.
-    // Removing storeId from the payload before insertion.
-    const { storeId, ...userPayload } = user;
-    // @ts-ignore
-    const { data, error } = await supabase.from('users').insert(camelToSnake(userPayload)).select().single();
-    if (error) throw error;
-    return snakeToCamel(data);
+    const { data, error } = await supabase.from('users').insert(user).select().single();
+    return handleSupabaseError({data, error}, 'addUser');
 };
-
 export const updateUser = async (user: User): Promise<void> => {
-    // FIX: The user's database schema is missing the `store_id` column.
-    // Removing storeId from the payload before update.
-    const { storeId, ...userPayload } = user;
-    const { error } = await supabase.from('users').update(camelToSnake(userPayload)).eq('id', user.id);
+    const { error } = await supabase.from('users').update(user).eq('id', user.id);
+    if(error) throw error;
+};
+export const deleteUser = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('users').delete().eq('id', id);
+    if(error) throw error;
+};
+
+// =================================================================================
+// SUPER ADMIN API
+// =================================================================================
+export const getAllStores = async (): Promise<Store[]> => {
+    const { data, error } = await supabase.from('stores').select('*');
+    return handleSupabaseError({ data, error }, 'getAllStores');
+};
+
+export const getAllUsers = async (storeId?: string): Promise<User[]> => {
+    let query = supabase.from('users').select('*');
+    if (storeId) {
+        query = query.eq('storeId', storeId);
+    }
+    const { data, error } = await query;
+    return handleSupabaseError({ data, error }, 'getAllUsers');
+};
+
+export const createStoreAndAdmin = async (storeName: string, logo: string, adminPass: string, adminEmail: string, trialDurationDays: number, address: string, ice: string, enableAiReceiptScan: boolean): Promise<{ store: Store, user: User, licenseKey: string }> => {
+    const { data, error } = await supabase.rpc('create_store_and_admin', {
+        p_store_name: storeName,
+        p_logo: logo,
+        p_admin_email: adminEmail,
+        p_admin_password: adminPass,
+        p_trial_duration: trialDurationDays,
+        p_address: address,
+        p_ice: ice,
+        p_enable_ai_scan: enableAiReceiptScan,
+    });
+    if (error) throw error;
+    return { store: data.store, user: data.user, licenseKey: data.store.licenseKey };
+};
+
+export const deleteStore = async (storeId: string): Promise<void> => {
+    const { error } = await supabase.rpc('delete_store', { p_store_id: storeId });
     if (error) throw error;
 };
-export const deleteUser = async (userId: string): Promise<void> => {
-    const { error } = await supabase.from('users').delete().eq('id', userId);
-    if (error) throw error;
-};
 
-// RESTORE
-export const restoreDatabase = async (backupData: Partial<StoreTypeMap>, storeId: string) => {
-    console.log("Starting restore process...");
-
-    const tableOrder: (keyof StoreTypeMap)[] = [
-        'users', 'suppliers', 'customers', 'categories', 
-        'products', 'productVariants', 'purchases',
-        'sales', 'expenses', 'returns', 'stockBatches'
-    ];
-
-    const tablesInBackup = tableOrder.filter(key => backupData[key] && Array.isArray(backupData[key]));
-
-    console.log("Tables found in backup:", tablesInBackup.join(', '));
-
-    // Delete existing data in reverse order
-    for (const tableName of [...tablesInBackup].reverse()) {
-        const key = toSnake(tableName) as keyof StoreTypeMap;
-        if (key === 'users') continue; // Don't delete users to avoid locking out admin
-
-        console.log(`Deleting data from ${key}...`);
-        try {
-            const { error } = await supabase.from(key).delete().eq('store_id', storeId);
-            if (error) {
-                if (error.code === '42P01') { // relation does not exist
-                    console.warn(`Table "${key}" does not exist, skipping deletion.`);
-                    continue;
-                }
-                throw error;
-            }
-            console.log(`Successfully deleted data from ${key}.`);
-        } catch (error) {
-            console.error(`Error deleting from ${key}:`, error);
-            throw new Error(`Failed to delete data from ${key}.`);
-        }
-    }
-    
-    // Insert new data
-    for (const tableName of tablesInBackup) {
-        const key = toSnake(tableName) as keyof StoreTypeMap;
-        let dataToInsert = (backupData[tableName] as any[]);
-
-        if (!dataToInsert || dataToInsert.length === 0) {
-            console.log(`No data to insert for ${key}, skipping.`);
-            continue;
-        }
-
-        console.log(`Inserting ${dataToInsert.length} records into ${key}...`);
-        
-        // Ensure every record has the correct, current storeId
-        dataToInsert = dataToInsert.map(item => ({ ...item, storeId: storeId }));
-        
-        // Remove store_id for users table if it doesn't exist
-        if (key === 'users') {
-          dataToInsert = dataToInsert.map(({ storeId, ...rest }) => rest);
-        }
-
-        try {
-            const { error } = await supabase.from(key).insert(camelToSnake(dataToInsert));
-            if (error) {
-                if (error.code === '42P01') { // relation does not exist
-                    console.warn(`Table "${key}" does not exist, skipping insertion.`);
-                    continue; 
-                }
-                throw error;
-            }
-            console.log(`Successfully inserted data into ${key}.`);
-        } catch (error) {
-            console.error(`Error inserting into ${key}:`, error);
-            throw new Error(`Failed to insert data into ${key}.`);
-        }
-    }
-    console.log("Restore process finished.");
-};
+export const getAdminUserForStore = async (storeId: string): Promise<User | null> => {
+    const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('storeId', storeId)
+        .eq('role', 'admin')
+        .single();
+    return handleSupabaseError({ data, error }, 'getAdminUserForStore');
+}
