@@ -543,7 +543,7 @@ export const restoreDatabase = async (content: string): Promise<{id: string} | n
             const chunkSize = 150;
             for (let i = 0; i < itemsWithStoreId.length; i += chunkSize) {
                 const chunk = itemsWithStoreId.slice(i, i + chunkSize);
-                console.log(`  - Inserting chunk ${Math.floor(i / chunkSize) + 1} for ${tableName}...`);
+                console.log(`  - Inserting chunk ${Math.floor(i / chunkSize) + 1} of ${Math.ceil(itemsWithStoreId.length / chunkSize)} for ${tableName}...`);
                 const { error: insertError } = await supabase.from(tableName).insert(chunk);
                 
                 if (insertError) {
