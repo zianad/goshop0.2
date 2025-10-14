@@ -1,3 +1,4 @@
+
 import { supabase } from './supabaseClient';
 import type {
   Store,
@@ -505,12 +506,16 @@ export const restoreDatabase = async (content: string): Promise<{id: string} | n
     // --- DELETION PHASE ---
     console.log("--- Starting Deletion Phase ---");
     for (const tableName of [...tablesInOrder].reverse()) {
+        if (!jsonData[tableName]) {
+            console.log(`No data for table "${tableName}" in backup file. Skipping deletion.`);
+            continue;
+        }
         console.log(`Attempting to delete data from ${tableName}...`);
         const { error: deleteError } = await supabase.from(tableName).delete().eq('storeId', storeId);
         
         if (deleteError) {
              if (deleteError.message.includes('relation') && deleteError.message.includes('does not exist')) {
-                 console.warn(`Table "${tableName}" does not exist. Skipping deletion.`);
+                 console.warn(`Table "${tableName}" does not exist in the database. Skipping deletion.`);
             } else {
                 console.error(`Critical error deleting from ${tableName}:`, deleteError);
                 throw new Error(`Erreur lors du vidage de la table ${tableName}: ${deleteError.message}`);
