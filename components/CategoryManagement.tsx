@@ -1,9 +1,9 @@
 
 
 import React, { useState } from 'react';
-import type { Category } from '../types';
-import { TagIcon, EditIcon, TrashIcon } from './Icons';
-import { translations } from '../translations';
+import type { Category } from '../types.ts';
+import { TagIcon, EditIcon, TrashIcon } from './Icons.tsx';
+import { translations } from '../translations.ts';
 
 type Language = 'fr' | 'ar';
 type TFunction = (key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => string;

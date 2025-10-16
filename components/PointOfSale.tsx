@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { Product, ProductVariant, CartItem, Customer, Category, Sale, User, Store } from '../types';
-import { TrashIcon, BarcodeIcon, PlusIcon, SparklesIcon } from './Icons';
-import { translations } from '../translations';
-// Fix: Use GoogleGenAI instead of the deprecated GoogleGenerativeAI
+import type { Product, ProductVariant, CartItem, Customer, Category, Sale, User, Store } from '../types.ts';
+import { TrashIcon, BarcodeIcon, PlusIcon, SparklesIcon } from './Icons.tsx';
+import { translations } from '../translations.ts';
+// FIX: Use GoogleGenAI instead of the deprecated GoogleGenerativeAI
 import { GoogleGenAI, Type } from "@google/genai";
 
 // IMPORTANT: To enable AI receipt scanning, you must provide a Google Gemini API key.
@@ -349,7 +349,7 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
             reader.readAsDataURL(file);
         });
         
-        // Fix: Use new GoogleGenAI class with named apiKey parameter
+        // FIX: Use new GoogleGenAI class with named apiKey parameter
         const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
         const imagePart = {
@@ -363,7 +363,7 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
             text: "From the provided receipt image, extract all purchase line items. For each item, provide its name (designation), quantity (quantite), and its unit price (prixHT). Return as a JSON array.",
         };
 
-        // Fix: Use the new ai.models.generateContent API
+        // FIX: Use the new ai.models.generateContent API
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: { parts: [imagePart, textPart] },
@@ -393,7 +393,7 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
             },
         });
         
-        // Fix: Use response.text instead of response.text()
+        // FIX: Use response.text instead of deprecated response.text()
         const jsonResponse = JSON.parse(response.text);
 
         if (!Array.isArray(jsonResponse)) {

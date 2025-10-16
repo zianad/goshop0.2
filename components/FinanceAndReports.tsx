@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import type { Expense, Sale, Product, ProductVariant, CartItem, Return, Customer, Purchase, Supplier, User } from '../types';
-import { exportToPdf, filterByDateRange } from '../utils/helpers';
-import { FileDownIcon, TrashIcon, EditIcon, SparklesIcon, UsersIcon, PrinterIcon, XIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons';
-import { translations } from '../translations';
+import type { Expense, Sale, Product, ProductVariant, CartItem, Return, Customer, Purchase, Supplier, User } from '../types.ts';
+import { exportToPdf, filterByDateRange } from '../utils/helpers.ts';
+import { FileDownIcon, TrashIcon, EditIcon, SparklesIcon, UsersIcon, PrinterIcon, XIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons.tsx';
+import { translations } from '../translations.ts';
 
 type Language = 'fr' | 'ar';
 type TFunction = (key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => string;

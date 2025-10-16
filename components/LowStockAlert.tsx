@@ -1,6 +1,6 @@
 import React from 'react';
-import type { Product, ProductVariant, Supplier } from '../types';
-import { translations } from '../translations';
+import type { Product, ProductVariant, Supplier } from '../types.ts';
+import { translations } from '../translations.ts';
 
 type TFunction = (key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => string;
 

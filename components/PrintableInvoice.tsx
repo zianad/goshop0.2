@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
-import type { Sale, Customer, CartItem, Store } from '../types';
-import { translations } from '../translations';
-import { PrinterIcon, XIcon } from './Icons';
+import type { Sale, Customer, CartItem, Store } from '../types.ts';
+import { translations } from '../translations.ts';
+import { PrinterIcon, XIcon } from './Icons.tsx';
 
 type Language = 'fr' | 'ar';
 type TFunction = (key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => string;
@@ -34,6 +34,10 @@ const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ sale, mode, onClose
   const locale = language === 'ar' ? 'ar-MA' : 'fr-FR';
   
   const toWords = (num: number): string => {
+      if (language === 'ar') {
+        // Arabic implementation would be complex, returning number for now.
+        return num.toFixed(2);
+      }
       const integerPart = Math.floor(num);
       const decimalPart = Math.round((num - integerPart) * 100);
 
@@ -43,171 +47,125 @@ const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ sale, mode, onClose
 
       const convertLessThanThousand = (n: number): string => {
           if (n === 0) return "";
-          if (n < 10) return units[n];
-          if (n < 20) return teens[n - 10];
-          if (n < 100) {
-              const ten = Math.floor(n / 10);
+          let str = "";
+          if (n >= 100) {
+              const hundreds = Math.floor(n/100);
+              str += (hundreds > 1 ? units[hundreds] + " " : "") + "CENT" + (n % 100 === 0 && hundreds > 1 ? "S" : "");
+              n %= 100;
+              if (n > 0) str += " ";
+          }
+          if (n >= 20) {
+              const ten = Math.floor(n/10);
+              str += tens[ten];
               const one = n % 10;
-              if (ten === 7 || ten === 9) {
-                  return tens[ten] + "-" + units[one];
-              }
-              let str = tens[ten];
-               if (ten === 8 && one === 0) str += 'S';
               if (one > 0) str += (one === 1 && ten < 8 ? " ET " : "-") + units[one];
-              return str;
+          } else if (n >= 10) {
+              str += teens[n - 10];
+          } else if (n > 0) {
+              str += units[n];
           }
-          if (n < 1000) {
-              const hundred = Math.floor(n / 100);
-              const rest = n % 100;
-              let str = hundred > 1 ? units[hundred] + " CENT" : "CENT";
-              if (rest === 0 && hundred > 1) str += 'S';
-              if (rest > 0) str += " " + convertLessThanThousand(rest);
-              return str;
-          }
-          return "";
+          return str;
       };
 
       if (num === 0) return "ZÉRO";
       let result = "";
-      const thousands = Math.floor(integerPart / 1000);
+      
+      const millions = Math.floor(integerPart / 1000000);
+      if (millions > 0) {
+          result += convertLessThanThousand(millions) + " MILLION" + (millions > 1 ? "S" : "") + " ";
+      }
+      const thousands = Math.floor((integerPart % 1000000) / 1000);
       if (thousands > 0) {
-          result += (thousands > 1 ? convertLessThanThousand(thousands) : "") + " MILLE ";
+          result += (thousands === 1 ? "" : convertLessThanThousand(thousands) + " ") + "MILLE ";
       }
       const rest = integerPart % 1000;
-      if (rest > 0 || thousands === 0) {
+      if (rest > 0) {
           result += convertLessThanThousand(rest);
       }
       
-      result = result.trim().replace("UN MILLE", "MILLE") + " DIRHAMS";
-      
+      result = result.trim() + " DIRHAMS";
+
       if (decimalPart > 0) {
-           result += " ET " + convertLessThanThousand(decimalPart) + " CENTIMES";
+          result += " ET " + convertLessThanThousand(decimalPart) + " CENTIMES";
       }
 
-      return result.toUpperCase().replace(/\s+/g, ' ');
+      return result.toUpperCase();
   };
 
-  const isInvoiceMode = mode === 'invoice';
-  const title = isInvoiceMode ? t('invoiceTitle') : t('orderFormTitle');
+  const totalTTC = sale.total;
+  const totalHT = mode === 'invoice' ? totalTTC / 1.2 : totalTTC;
+  const tvaAmount = mode === 'invoice' ? totalTTC - totalHT : 0;
+  const title = mode === 'invoice' ? t('invoiceTitle') : t('orderFormTitle');
+  const amountInWords = toWords(totalTTC);
   
-  const { subTotal, totalHT, tvaAmount, totalTTC, amountForWords } = useMemo(() => {
-    const finalAmountFromSale = sale.total;
-    const ttc = finalAmountFromSale;
-    const ht = isInvoiceMode ? ttc / 1.2 : ttc;
-    const tva = isInvoiceMode ? ttc - ht : 0;
-    
-    // Subtotal needs to be calculated based on mode
-    const sub = sale.items.reduce((sum, i) => {
-        const itemPrice = isInvoiceMode ? (i.price / 1.2) : i.price;
-        return sum + (itemPrice * i.quantity);
-    }, 0);
-
-    return {
-      subTotal: sub,
-      totalHT: ht,
-      tvaAmount: tva,
-      totalTTC: ttc,
-      amountForWords: ttc, 
-    };
-  }, [sale, isInvoiceMode]);
-  
-  const totalInWords = toWords(amountForWords);
-
-
   return (
-    <div className="fixed inset-0 bg-slate-700 bg-opacity-75 flex justify-center items-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full flex flex-col">
-        <div id="printable-invoice" className="p-10 bg-white text-black font-sans text-sm">
-            {/* Header */}
-            <div className="flex justify-between items-start mb-8">
-                <div>
-                    <h1 className="font-bold text-2xl mb-2 text-black">{store.name || "CARRE FER"}</h1>
-                    <p className="text-black">le : {new Date(sale.date).toLocaleDateString(locale)}</p>
-                    {store.ice && <p className="text-black">ICE : {store.ice}</p>}
-                </div>
-                <div className="text-right">
-                    <h2 className="font-bold text-lg text-black">{title} N°: {sale.id.slice(-8).toUpperCase()}</h2>
-                    <div className="border border-black p-2 mt-2 min-w-[200px]">
-                        <p className="text-black">{customer ? customer.name : 'Client Particulier'}</p>
-                    </div>
-                </div>
+    <div className="fixed inset-0 bg-slate-700 bg-opacity-75 flex justify-center items-center z-50">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-md w-full">
+        <div id="printable-invoice" className="p-6 text-slate-700 bg-white dark:bg-white dark:text-slate-800" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+            <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold">{title}</h1>
+                <p className="text-sm font-semibold">{store.name}</p>
+                {store.address ? <p className="text-xs">{store.address}</p> : <p className="text-xs">{t('invoiceAddress')}</p>}
+                {store.ice && <p className="text-xs">ICE: {store.ice}</p>}
             </div>
-
-            {/* Items Table */}
-            <table className="w-full border-collapse mb-4">
+            <div className="text-xs mb-4">
+                <p><strong>{t('billNumber')}</strong> {sale.id.slice(-8).toUpperCase()}</p>
+                <p><strong>{t('date')}:</strong> {new Date(sale.date).toLocaleString(locale)}</p>
+                {customer && <p><strong>{t('customer')}:</strong> {customer.name}</p>}
+            </div>
+            <table className="w-full text-sm mb-4 border-collapse">
                 <thead>
-                    <tr>
-                        <th className="border-2 border-black p-1 text-left font-bold bg-gray-100 text-black">Désignation</th>
-                        <th className="border-2 border-black p-1 text-center font-bold bg-gray-100 text-black w-24">Quantité</th>
-                        <th className="border-2 border-black p-1 text-center font-bold bg-gray-100 text-black w-32">{isInvoiceMode ? t('prixHT') : t('price')}</th>
-                        <th className="border-2 border-black p-1 text-center font-bold bg-gray-100 text-black w-32">{isInvoiceMode ? t('totalHT') : t('total')}</th>
+                    <tr className="bg-slate-100">
+                        <th className="border border-slate-300 p-2 text-right rtl:text-left font-bold">{t('productColumn')}</th>
+                        <th className="border border-slate-300 p-2 text-center font-bold">{t('quantity')}</th>
+                        <th className="border border-slate-300 p-2 text-center font-bold">{mode === 'invoice' ? t('prixHT') : t('price')}</th>
+                        <th className="border border-slate-300 p-2 text-center font-bold">{t('total')}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {sale.items.map(item => {
-                        const itemPrice = isInvoiceMode ? item.price / 1.2 : item.price;
-                        return (
-                            <tr key={item.id}>
-                                <td className="border-2 border-black p-1 text-left text-black">{item.name}</td>
-                                <td className="border-2 border-black p-1 text-center text-black">{item.quantity}</td>
-                                <td className="border-2 border-black p-1 text-center text-black">{itemPrice.toFixed(2)}</td>
-                                <td className="border-2 border-black p-1 text-center font-semibold text-black">{(itemPrice * item.quantity).toFixed(2)}</td>
-                            </tr>
-                        )
-                    })}
+                    {sale.items.map(item => (
+                        <tr key={item.id}>
+                            <td className="border border-slate-300 p-2 text-right rtl:text-left">{item.name}</td>
+                            <td className="border border-slate-300 p-2 text-center">{item.quantity}</td>
+                            <td className="border border-slate-300 p-2 text-center">{(mode === 'invoice' ? item.price / 1.2 : item.price).toFixed(2)}</td>
+                            <td className="border border-slate-300 p-2 text-center font-semibold">{(item.price * item.quantity / (mode === 'invoice' ? 1.2 : 1)).toFixed(2)}</td>
+                        </tr>
+                    ))}
                 </tbody>
-                <tfoot>
-                  <tr>
-                    <td colSpan={3} className="border-2 border-black p-1 text-right font-bold text-black">{t('total')}</td>
-                    <td className="border-2 border-black p-1 text-center font-bold text-black">{subTotal.toFixed(2)}</td>
-                  </tr>
-                </tfoot>
             </table>
-            
-            {/* Footer */}
-            <div className="flex justify-between items-start mt-8">
-                <div className="w-2/3">
-                    <p className="font-semibold text-black">{isInvoiceMode ? 'Arrêtée la présente facture à la somme de :' : 'Arrêtée le présent bon à la somme de :'}</p>
-                    <p className="font-bold uppercase text-black">{totalInWords}</p>
-                </div>
-                <div className="w-1/3">
-                   {isInvoiceMode ? (
-                        <table className="w-full border-collapse">
-                            <tbody>
-                                <tr>
-                                    <td className="border-2 border-black p-1 font-bold text-black">{t('totalHT')}</td>
-                                    <td className="border-2 border-black p-1 text-right font-semibold text-black">{totalHT.toFixed(2)}</td>
-                                </tr>
-                                <tr>
-                                    <td className="border-2 border-black p-1 font-bold text-black">{t('vat')}</td>
-                                    <td className="border-2 border-black p-1 text-right font-semibold text-black">{tvaAmount.toFixed(2)}</td>
-                                </tr>
-                                <tr>
-                                    <td className="border-2 border-black p-1 font-bold bg-gray-100 text-black">{t('totalTTC')}</td>
-                                    <td className="border-2 border-black p-1 text-right font-bold bg-gray-100 text-black">{totalTTC.toFixed(2)}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    ) : (
-                         <table className="w-full border-collapse">
-                            <tbody>
-                                <tr>
-                                    <td className="border-2 border-black p-1 font-bold bg-gray-100 text-black">{t('total')}</td>
-                                    <td className="border-2 border-black p-1 text-right font-bold bg-gray-100 text-black">{totalTTC.toFixed(2)}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    )}
+
+            <div className="w-full mt-4 text-sm">
+                 <div className="grid grid-cols-2 gap-x-4">
+                    <div className="col-start-2">
+                        <div className="flex justify-between py-1">
+                            <span>{t('totalHT')}:</span>
+                            <span className="font-semibold">{totalHT.toFixed(2)} DH</span>
+                        </div>
+                        {mode === 'invoice' && (
+                            <div className="flex justify-between py-1">
+                                <span>{t('vat')}:</span>
+                                <span className="font-semibold">{tvaAmount.toFixed(2)} DH</span>
+                            </div>
+                        )}
+                        <div className="flex justify-between py-2 font-bold text-lg border-t-2 border-slate-400 mt-1">
+                            <span>{t('totalTTC')}:</span>
+                            <span>{totalTTC.toFixed(2)} DH</span>
+                        </div>
+                    </div>
                 </div>
             </div>
+            
+            {mode === 'invoice' && language === 'fr' && (
+                <p className="text-xs mt-4 p-2 bg-slate-100 rounded-md">Arrêté la présente facture à la somme de : {amountInWords}</p>
+            )}
+
+            <p className="text-center text-xs mt-6">{t('thankYou')}</p>
         </div>
-        <div className="p-4 bg-gray-100 border-t flex justify-end gap-3 print:hidden">
-          <button onClick={onClose} className="flex items-center gap-2 bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors">
-            <XIcon className="w-5 h-5" />
+        <div className="p-4 bg-gray-50 dark:bg-slate-700/50 border-t dark:border-slate-700 flex justify-end gap-3">
+          <button onClick={onClose} className="bg-gray-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500">
             {t('close')}
           </button>
-          <button onClick={handlePrint} className="flex items-center gap-2 bg-teal-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors">
-            <PrinterIcon className="w-5 h-5" />
+          <button onClick={handlePrint} className="bg-teal-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-700">
             {t('print')}
           </button>
         </div>

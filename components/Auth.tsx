@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DeveloperLogo } from './DeveloperLogo';
-import { translations } from '../translations';
-import * as api from '../api';
-import type { User, Store } from '../types';
-import { SunIcon, MoonIcon } from './Icons';
+import { DeveloperLogo } from './DeveloperLogo.tsx';
+import { translations } from '../translations.ts';
+import * as api from '../api.ts';
+import type { User, Store } from '../types.ts';
+import { SunIcon, MoonIcon } from './Icons.tsx';
 
 type Language = 'fr' | 'ar';
 type Theme = 'light' | 'dark';

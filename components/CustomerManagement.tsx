@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Customer, Sale } from '../types';
-import { UsersIcon, FileDownIcon, TrashIcon, PrinterIcon, FileTextIcon, HistoryIcon, XIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons';
-import { exportToPdf, setupPdfDoc } from '../utils/helpers';
-import { translations } from '../translations';
+import type { Customer, Sale } from '../types.ts';
+import { UsersIcon, FileDownIcon, TrashIcon, PrinterIcon, FileTextIcon, HistoryIcon, XIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons.tsx';
+import { exportToPdf, setupPdfDoc } from '../utils/helpers.ts';
+import { translations } from '../translations.ts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
