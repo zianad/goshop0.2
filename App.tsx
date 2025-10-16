@@ -18,6 +18,8 @@ import PrintableInvoice from './components/PrintableInvoice.tsx';
 import PrintableReturnReceipt from './components/PrintableReturnReceipt.tsx';
 import LowStockAlert from './components/LowStockAlert.tsx';
 import TrialBanner from './components/TrialBanner.tsx';
+// FIX: Import the UserManagement component.
+import UserManagement from './components/UserManagement.tsx';
 import { useLocalStorage } from './hooks/useLocalStorage.ts';
 import { useIndexedDBStore } from './hooks/useIndexedDBStore.ts';
 // FIX: Corrected import path to be relative.
@@ -194,7 +196,7 @@ const App: React.FC = () => {
       variantsToDelete.forEach(v => removeVariantFromDb(v.id));
     };
 
-    const handleAddStockToVariant = async (data: { variantId: string, quantity: number, purchasePrice: number, sellingPrice: number, supplierId: string | undefined }) => {
+    const handleAddStockToVariant = async (data: { variantId: string; quantity: number; purchasePrice: number; sellingPrice: number; supplierId: string | undefined; }) => {
         const { purchase, newStockBatch, updatedVariant } = await api.addStock(data);
         addPurchaseToDb(purchase);
         addStockBatchToDb(newStockBatch);

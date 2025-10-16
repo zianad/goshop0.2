@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
-import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, CartItem, Return, StockBatch, VariantFormData } from './types';
+// FIX: Add 'PurchaseItem' to the type import to resolve a missing type error.
+import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, CartItem, Return, StockBatch, VariantFormData, PurchaseItem } from './types';
 
 // Helper to check for errors and throw them
 const checkError = (error: any, context: string) => {
@@ -268,13 +269,16 @@ export const updateProductWithVariants = async (productData: Product, variantsDa
         checkError(error, 'updateProductWithVariants (delete variants)');
     }
     
-    // 5. Add new stock batches
+    // FIX: Add new stock batches and select them back to get IDs, resolving a type error in App.tsx.
+    // 5. Add new stock batches and get them back with IDs
+    let insertedStockBatches: StockBatch[] = [];
     if (newStockBatches.length > 0) {
-        const { error } = await supabase.from('stockBatches').insert(newStockBatches);
+        const { data, error } = await supabase.from('stockBatches').insert(newStockBatches).select();
         checkError(error, 'updateProductWithVariants (stock)');
+        insertedStockBatches = data || [];
     }
 
-    return { updatedVariants, newVariants, deletedVariantIds, newStockBatches };
+    return { updatedVariants, newVariants, deletedVariantIds, newStockBatches: insertedStockBatches };
 };
 
 

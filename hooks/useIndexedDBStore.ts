@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { StoreTypeMap } from '../types.ts';
 
 const DB_NAME = 'pos-app-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 type StoreName = keyof StoreTypeMap;
 
