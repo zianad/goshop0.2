@@ -31,7 +31,7 @@ type Language = 'fr' | 'ar';
 type Theme = 'light' | 'dark';
 
 const App: React.FC = () => {
-    const [authState, setAuthState] = useState<AuthState>('loading');
+    const [authState, setAuthState] = useState<AuthState>('unauthenticated');
     const [activeTab, setActiveTab] = useState<TabType>(Tab.POS);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [currentStore, setCurrentStore] = useState<Store | null>(null);
