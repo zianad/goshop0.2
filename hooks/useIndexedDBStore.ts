@@ -6,24 +6,35 @@ const DB_VERSION = 2;
 
 type StoreName = keyof StoreTypeMap;
 
+let dbPromise: Promise<IDBDatabase> | null = null;
+
 const openDB = (): Promise<IDBDatabase> => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      Object.keys({
-        products: [], productVariants: [], sales: [], expenses: [], users: [],
-        returns: [], stores: [], customers: [], suppliers: [], categories: [],
-        purchases: [], stockBatches: []
-      } as StoreTypeMap).forEach(storeName => {
-        if (!db.objectStoreNames.contains(storeName)) {
-          db.createObjectStore(storeName, { keyPath: 'id' });
-        }
-      });
-    };
-  });
+  if (!dbPromise) {
+    dbPromise = new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onerror = () => {
+        console.error('IndexedDB opening error:', request.error);
+        dbPromise = null; // Allow retrying on next call
+        reject(request.error);
+      };
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        Object.keys({
+          products: [], productVariants: [], sales: [], expenses: [], users: [],
+          returns: [], stores: [], customers: [], suppliers: [], categories: [],
+          purchases: [], stockBatches: []
+        } as StoreTypeMap).forEach(storeName => {
+          if (!db.objectStoreNames.contains(storeName)) {
+            db.createObjectStore(storeName, { keyPath: 'id' });
+          }
+        });
+      };
+    });
+  }
+  return dbPromise;
 };
 
 export function useIndexedDBStore<T extends { id: string }>(storeName: StoreName) {
