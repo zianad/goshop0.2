@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 // FIX: Added StockBatch and VariantFormData to the type imports.
-import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, CartItem, Return, StockBatch, Tab as TabType, VariantFormData } from './types.ts';
+import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, CartItem, Return, StockBatch, Tab as TabType, VariantFormData, StoreTypeMap } from './types.ts';
 import { Tab } from './types.ts';
 import { translations } from './translations.ts';
 import Auth from './components/Auth.tsx';
@@ -169,6 +169,95 @@ const App: React.FC = () => {
         localStorage.removeItem('pos-license');
         handleLogout();
     }
+    
+    const handleBackup = () => {
+        if (!currentStore) return;
+        const backupData: Partial<StoreTypeMap> = {
+            stores: [currentStore],
+            users,
+            products,
+            productVariants: variants,
+            sales,
+            expenses,
+            customers,
+            suppliers,
+            categories,
+            purchases,
+            stockBatches,
+            returns,
+        };
+
+        const jsonString = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `goshop-backup-${currentStore.name.replace(/\s/g, '_')}-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleRestore = async (backupJsonString: string) => {
+        if (!window.confirm(t('restoreConfirm'))) {
+            return;
+        }
+
+        try {
+            const backupData: Partial<StoreTypeMap> = JSON.parse(backupJsonString);
+            
+            if (!backupData.stores || !Array.isArray(backupData.stores) || backupData.stores.length === 0) {
+                throw new Error(t('restoreError'));
+            }
+
+            const DB_NAME = 'pos-app-db';
+            const request = indexedDB.open(DB_NAME);
+
+            request.onsuccess = (event) => {
+                const db = (event.target as IDBOpenDBRequest).result;
+                const storeNames = Object.keys(backupData) as (keyof StoreTypeMap)[];
+                const validStoreNames = storeNames.filter(name => db.objectStoreNames.contains(name));
+                
+                const tx = db.transaction(validStoreNames, 'readwrite');
+                
+                tx.oncomplete = () => {
+                    localStorage.setItem('pos-license', JSON.stringify({ storeId: backupData.stores![0].id }));
+                    alert(t('restoreSuccess'));
+                    window.location.reload();
+                };
+                
+                tx.onerror = (event) => {
+                    console.error("Restore transaction error:", (event.target as IDBRequest).error);
+                    alert(t('restoreError'));
+                };
+
+                validStoreNames.forEach(storeName => {
+                    const dataToRestore = backupData[storeName];
+                    if (dataToRestore && Array.isArray(dataToRestore)) {
+                        const store = tx.objectStore(storeName);
+                        store.clear();
+                        dataToRestore.forEach((item: any) => {
+                            store.put(item);
+                        });
+                    }
+                });
+            };
+
+            request.onerror = () => {
+                 alert(t('restoreError'));
+            };
+            
+        } catch (error) {
+            console.error("Restore failed:", error);
+            if (error instanceof SyntaxError) {
+                alert(t('jsonParseError'));
+            } else {
+                alert((error as Error).message || t('restoreError'));
+            }
+        }
+    };
+
 
     // Handlers to be passed down
     const handleAddProduct = async (productData: Omit<Product, 'id'>, variantsData: (Omit<ProductVariant, 'id'|'productId'|'storeId'> & {stockQuantity?: number})[]) => {
@@ -348,7 +437,7 @@ const App: React.FC = () => {
             case Tab.Customers: return <CustomerManagement storeId={currentStore.id} customers={customers} sales={sales} addCustomer={handleAddCustomer} deleteCustomer={handleDeleteCustomer} payCustomerDebt={handlePayCustomerDebt} t={t} language={language}/>;
             case Tab.Suppliers: return <SupplierManagement storeId={currentStore.id} suppliers={suppliers} products={goods} variants={variants} purchases={purchases} categories={categories} addSupplier={handleAddSupplier} deleteSupplier={handleDeleteSupplier} addPurchase={handleAddPurchase} updatePurchase={handleUpdatePurchase} addProduct={handleAddProduct} t={t} language={language}/>;
             case Tab.Categories: return <CategoryManagement storeId={currentStore.id} categories={categories} addCategory={handleAddCategory} updateCategory={handleUpdateCategory} deleteCategory={handleDeleteCategory} t={t} language={language}/>;
-            case Tab.Settings: return <UserManagement activeUser={currentUser} store={currentStore} storeId={currentStore.id} users={users} addUser={handleAddUser} updateUser={handleUpdateUser} deleteUser={handleDeleteUser} onUpdateStore={handleUpdateStore} t={t} />;
+            case Tab.Settings: return <UserManagement activeUser={currentUser} store={currentStore} storeId={currentStore.id} users={users} addUser={handleAddUser} updateUser={handleUpdateUser} deleteUser={handleDeleteUser} onUpdateStore={handleUpdateStore} onBackup={handleBackup} onRestore={handleRestore} t={t} />;
             default: return <div>Tab not found</div>
         }
     };

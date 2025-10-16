@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { User, Store } from '../types';
-import { UserPlusIcon, TrashIcon, KeyIcon, StoreIcon, SparklesIcon } from './Icons';
+import { UserPlusIcon, TrashIcon, KeyIcon, StoreIcon, SparklesIcon, DatabaseZapIcon, FileDownIcon, UploadIcon } from './Icons';
 import { translations } from '../translations';
 import { Logo } from './Logo';
 
@@ -15,10 +15,12 @@ interface UserManagementProps {
   updateUser: (user: User) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   onUpdateStore: (updatedStoreData: Partial<Store>) => Promise<void>;
+  onBackup: () => void;
+  onRestore: (backupJson: string) => void;
   t: TFunction;
 }
 
-const UserManagement: React.FC<UserManagementProps> = ({ activeUser, store, storeId, users, addUser, updateUser, deleteUser, onUpdateStore, t }) => {
+const UserManagement: React.FC<UserManagementProps> = ({ activeUser, store, storeId, users, addUser, updateUser, deleteUser, onUpdateStore, onBackup, onRestore, t }) => {
   const [newUser, setNewUser] = useState({ name: '', pin: '' });
   const [editingPins, setEditingPins] = useState<{ [key: string]: string }>({});
   const [adminPassword, setAdminPassword] = useState({ current: '', new: '', confirm: '' });
@@ -31,6 +33,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ activeUser, store, stor
   });
 
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [restoreText, setRestoreText] = useState('');
 
   const adminUser = useMemo(() => users.find(u => u.role === 'admin'), [users]);
   const sellerUsers = useMemo(() => users.filter(u => u.role === 'seller'), [users]);
@@ -140,6 +144,31 @@ const UserManagement: React.FC<UserManagementProps> = ({ activeUser, store, stor
       clearFeedback();
   };
 
+  const handleFileRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              const text = event.target?.result;
+              if (typeof text === 'string') {
+                  onRestore(text);
+              } else {
+                  alert(t('restoreError'));
+              }
+          };
+          reader.readAsText(file);
+      }
+      e.target.value = ''; // Reset file input
+  };
+
+  const handleTextRestore = () => {
+      if (restoreText.trim()) {
+          onRestore(restoreText);
+          setShowRestoreModal(false);
+          setRestoreText('');
+      }
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -234,11 +263,61 @@ const UserManagement: React.FC<UserManagementProps> = ({ activeUser, store, stor
                 </form>
            </div>
       </div>
+      
+      {/* Backup and Restore Card */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+        <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+            <DatabaseZapIcon/>{t('backupAndRestore')}
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Backup */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <h3 className="font-bold text-lg text-slate-600 dark:text-slate-300 mb-2">{t('backupButton')}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('backupDescription')}</p>
+                <button onClick={onBackup} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2">
+                    <FileDownIcon className="w-5 h-5"/> {t('backupButton')}
+                </button>
+            </div>
+
+            {/* Restore */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <h3 className="font-bold text-lg text-slate-600 dark:text-slate-300 mb-2">{t('restoreButton')}</h3>
+                <p className="text-sm text-red-500 dark:text-red-400 mb-4">{t('restoreDescription')}</p>
+                 <button onClick={() => setShowRestoreModal(true)} className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 mb-3">
+                    <UploadIcon className="w-5 h-5"/> {t('restoreFromText')}
+                </button>
+                <label className="text-center block text-sm text-slate-500 dark:text-slate-400 cursor-pointer hover:text-teal-600 dark:hover:text-teal-400">
+                    {t('restoreFromFileAlternative')}
+                    <input type="file" accept=".json" onChange={handleFileRestore} className="hidden" />
+                </label>
+            </div>
+        </div>
+      </div>
+
        {feedback && (
           <div className={`fixed bottom-4 right-4 z-50 p-4 rounded-lg shadow-xl text-sm font-semibold ${feedback.type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900/70 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900/70 dark:text-red-200'}`}>
               {feedback.message}
           </div>
       )}
+
+      {showRestoreModal && (
+        <div className="fixed inset-0 bg-slate-800 bg-opacity-75 flex justify-center items-center z-50 p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-2xl w-full p-6">
+                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-2">{t('restoreFromText')}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('restoreFromTextDescription')}</p>
+                <textarea 
+                    value={restoreText}
+                    onChange={(e) => setRestoreText(e.target.value)}
+                    placeholder={t('pasteBackupContent')}
+                    className="w-full h-64 p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600 font-mono text-xs"
+                />
+                <div className="flex justify-end gap-3 mt-4">
+                    <button onClick={() => setShowRestoreModal(false)} className="bg-gray-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500">{t('cancel')}</button>
+                    <button onClick={handleTextRestore} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700">{t('restoreButton')}</button>
+                </div>
+            </div>
+        </div>
+       )}
     </div>
   );
 };
