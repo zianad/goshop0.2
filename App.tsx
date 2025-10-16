@@ -26,7 +26,7 @@ import { useIndexedDBStore } from './hooks/useIndexedDBStore.ts';
 import * as api from './api.ts';
 import { BoxIcon, CoinsIcon, HistoryIcon, LogoutIcon, SettingsIcon, ShoppingCartIcon, StoreIcon, TagIcon, TruckIcon, UsersIcon } from './components/Icons.tsx';
 
-type AuthState = 'loading' | 'unauthenticated' | 'authenticated' | 'super_admin_landing' | 'super_admin_dashboard';
+type AuthState = 'unauthenticated' | 'authenticated' | 'super_admin_landing' | 'super_admin_dashboard';
 type Language = 'fr' | 'ar';
 type Theme = 'light' | 'dark';
 
@@ -322,11 +322,6 @@ const App: React.FC = () => {
     
     const services = useMemo(() => products.filter(p => p.type === 'service'), [products]);
     const goods = useMemo(() => products.filter(p => p.type === 'good'), [products]);
-
-
-    if (authState === 'loading') {
-        return <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-900"><p>{t('loading')}...</p></div>;
-    }
 
     if (authState === 'unauthenticated') {
         return <Auth onLoginSuccess={onLoginSuccess} onSuperAdminLogin={onSuperAdminLogin} t={t} language={language} setLanguage={setLanguage} theme={theme} toggleTheme={toggleTheme}/>;
