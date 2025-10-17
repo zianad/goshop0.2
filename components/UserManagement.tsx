@@ -151,7 +151,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ activeUser, store, stor
           reader.onload = (event) => {
               const text = event.target?.result;
               if (typeof text === 'string') {
-                  onRestore(text);
+                  // Clean the large image data before passing it on
+                  const cleanedText = text.replace(/"(?:logo|image)":\s*"data:image\/[^"]+"/g, '"$1": ""');
+                  onRestore(cleanedText);
               } else {
                   alert(t('restoreError'));
               }
@@ -163,7 +165,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ activeUser, store, stor
 
   const handleTextRestore = () => {
       if (restoreText.trim()) {
-          onRestore(restoreText);
+          // Clean the large image data before passing it on
+          const cleanedText = restoreText.replace(/"(?:logo|image)":\s*"data:image\/[^"]+"/g, '"$1": ""');
+          onRestore(cleanedText);
           setShowRestoreModal(false);
           setRestoreText('');
       }

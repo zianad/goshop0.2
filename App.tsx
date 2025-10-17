@@ -172,11 +172,17 @@ const App: React.FC = () => {
     
     const handleBackup = () => {
         if (!currentStore) return;
+
+        // Create versions of data with images removed to reduce file size
+        const productsWithoutImages = products.map(({ image, ...rest }) => ({ ...rest, image: '' }));
+        const variantsWithoutImages = variants.map(({ image, ...rest }) => ({ ...rest, image: '' }));
+        const storeWithoutLogo = { ...currentStore, logo: '' };
+
         const backupData: Partial<StoreTypeMap> = {
-            stores: [currentStore],
+            stores: [storeWithoutLogo],
             users,
-            products,
-            productVariants: variants,
+            products: productsWithoutImages,
+            productVariants: variantsWithoutImages,
             sales,
             expenses,
             customers,
@@ -205,7 +211,9 @@ const App: React.FC = () => {
         }
 
         try {
-            const backupData: Partial<StoreTypeMap> = JSON.parse(backupJsonString);
+            // Automatically clean image data from the backup string before parsing
+            const cleanedJsonString = backupJsonString.replace(/"(logo|image)":\s*"data:image\/[^"]+"/g, '"$1": ""');
+            const backupData: Partial<StoreTypeMap> = JSON.parse(cleanedJsonString);
             
             if (!backupData.stores || !Array.isArray(backupData.stores) || backupData.stores.length === 0) {
                 throw new Error(t('restoreError'));
