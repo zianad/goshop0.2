@@ -143,7 +143,6 @@ const App: React.FC = () => {
     } else {
       document.documentElement.classList.remove('dark');
     }
-    localStorage.setItem('theme', theme);
   }, [theme]);
   
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
