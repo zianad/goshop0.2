@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 
 // Import types
 import type { 
@@ -61,6 +61,8 @@ const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [printingSale, setPrintingSale] = useState<{ sale: Sale, mode: 'invoice' | 'orderForm' } | null>(null);
   const [printingReturn, setPrintingReturn] = useState<Return | null>(null);
+  
+  const isSyncing = useRef(false);
 
   // Translation function
   const t = useCallback((key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => {
@@ -156,45 +158,58 @@ const App: React.FC = () => {
 
   // Data sync on store change
   const syncDataForStore = useCallback(async (storeId: string) => {
+    if (isSyncing.current) return;
+    isSyncing.current = true;
     setIsLoading(true);
-    const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+    const allLocalStores = [
+        productsStore, variantsStore, salesStore, expensesStore, usersStore,
+        returnsStore, storesStore, customersStore, suppliersStore, categoriesStore,
+        purchasesStore, stockBatchesStore
+    ];
+
     try {
-      const dataSources: { key: keyof StoreTypeMap; name: string; fetch: (id: string) => Promise<any[]>; store: ReturnType<typeof useIndexedDBStore<any>>; }[] = [
-        { key: 'products', name: t('products'), fetch: api.getProducts, store: productsStore },
-        { key: 'productVariants', name: t('variants'), fetch: api.getProductVariants, store: variantsStore },
-        { key: 'sales', name: t('sales'), fetch: api.getSales, store: salesStore },
-        { key: 'expenses', name: t('expenses'), fetch: api.getExpenses, store: expensesStore },
-        { key: 'users', name: t('userList'), fetch: api.getUsers, store: usersStore },
-        { key: 'returns', name: t('returnHistory'), fetch: api.getReturns, store: returnsStore },
-        { key: 'customers', name: t('customers'), fetch: api.getCustomers, store: customersStore },
-        { key: 'suppliers', name: t('suppliers'), fetch: api.getSuppliers, store: suppliersStore },
-        { key: 'categories', name: t('categories'), fetch: api.getCategories, store: categoriesStore },
-        { key: 'purchases', name: t('allPurchasesHistory'), fetch: api.getPurchases, store: purchasesStore },
-        { key: 'stockBatches', name: t('stock'), fetch: api.getStockBatches, store: stockBatchesStore },
-      ];
+        setLoadingMessage(t('loading'));
+        
+        // 1. Clear ALL local data first for a clean slate
+        await Promise.all(allLocalStores.map(s => s.clear()));
       
-      // Sequentially fetch and store data to avoid resource exhaustion
-      for (const ds of dataSources) {
-        setLoadingMessage(`${t('loading')} ${ds.name}...`);
-        const fetchedData = await ds.fetch(storeId);
-        await ds.store.clear();
-        if (fetchedData && fetchedData.length > 0) {
-          await ds.store.bulkAdd(fetchedData);
+        const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+        const dataSources: { key: keyof StoreTypeMap; name: string; fetch: (id: string) => Promise<any[]>; store: ReturnType<typeof useIndexedDBStore<any>>; }[] = [
+            { key: 'products', name: t('products'), fetch: api.getProducts, store: productsStore },
+            { key: 'productVariants', name: t('variants'), fetch: api.getProductVariants, store: variantsStore },
+            { key: 'sales', name: t('sales'), fetch: api.getSales, store: salesStore },
+            { key: 'expenses', name: t('expenses'), fetch: api.getExpenses, store: expensesStore },
+            { key: 'users', name: t('userList'), fetch: api.getUsers, store: usersStore },
+            { key: 'returns', name: t('returnHistory'), fetch: api.getReturns, store: returnsStore },
+            { key: 'customers', name: t('customers'), fetch: api.getCustomers, store: customersStore },
+            { key: 'suppliers', name: t('suppliers'), fetch: api.getSuppliers, store: suppliersStore },
+            { key: 'categories', name: t('categories'), fetch: api.getCategories, store: categoriesStore },
+            { key: 'purchases', name: t('allPurchasesHistory'), fetch: api.getPurchases, store: purchasesStore },
+            { key: 'stockBatches', name: t('stock'), fetch: api.getStockBatches, store: stockBatchesStore },
+        ];
+        
+        // 2. Sequentially fetch and store data
+        for (const ds of dataSources) {
+            setLoadingMessage(`${t('loading')} ${ds.name}...`);
+            const fetchedData = await ds.fetch(storeId);
+            if (fetchedData && fetchedData.length > 0) {
+                await ds.store.bulkAdd(fetchedData);
+            }
+            await delay(100); 
         }
-        await delay(100); // Give the browser a moment to breathe
-      }
-      
-      if (activeStore) {
-        await storesStore.clear();
-        await storesStore.add(activeStore);
-      }
+        
+        if (activeStore) {
+            await storesStore.add(activeStore);
+        }
       
     } catch (error: any) {
-      console.error("Failed to sync data:", error);
-      alert(t('failedToFetchError_CORS'));
+        console.error("Failed to sync data:", error);
+        alert(t('failedToFetchError_CORS'));
     } finally {
-      setIsLoading(false);
-      setLoadingMessage(t('loading')); // Reset on completion/failure
+        setIsLoading(false);
+        setLoadingMessage(t('loading')); 
+        isSyncing.current = false;
     }
   }, [activeStore, t, productsStore, variantsStore, salesStore, expensesStore, usersStore, returnsStore, storesStore, customersStore, suppliersStore, categoriesStore, purchasesStore, stockBatchesStore]);
   
@@ -425,6 +440,10 @@ const App: React.FC = () => {
         setIsLoading(true);
         setLoadingMessage(t('restoreButton'));
         
+        // Clear all data before restoring for consistency
+        const allLocalStores = Object.values(allStoresMap).filter(Boolean) as ReturnType<typeof useIndexedDBStore<any>>[];
+        await Promise.all(allLocalStores.map(store => store.clear()));
+
         let restoredSomething = false;
 
         for (const key in backupData) {
@@ -434,7 +453,6 @@ const App: React.FC = () => {
                 const dataToRestore = backupData[storeKey];
 
                 if (store && Array.isArray(dataToRestore)) {
-                    await store.clear();
                     await store.bulkAdd(dataToRestore);
                     restoredSomething = true;
                 }
@@ -454,6 +472,8 @@ const App: React.FC = () => {
             ? t('jsonParseError') 
             : `${t('restoreError')}${error.message ? `: ${error.message}` : ''}`;
         alert(errorMessage);
+        // On failure, reload to re-sync from server instead of leaving a partial state
+        window.location.reload();
     } finally {
         setIsLoading(false);
     }
