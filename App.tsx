@@ -191,7 +191,7 @@ const App: React.FC = () => {
       
     } catch (error) {
       console.error("Failed to sync data:", error);
-      alert("Failed to sync data. Please check your connection and try again.");
+      alert(t('failedToFetchError_CORS'));
     } finally {
       setIsLoading(false);
     }
