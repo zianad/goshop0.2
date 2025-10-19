@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import type { Product, ProductVariant } from '../types';
 import { SparklesIcon, TrashIcon, EditIcon } from './Icons';
@@ -128,7 +126,7 @@ const ServiceManagement: React.FC<ServiceManagementProps> = ({ storeId, services
         priceWholesale: newService.priceWholesale || undefined,
         type: 'service',
         storeId,
-        image: `https://via.placeholder.com/200/e9d5ff/a855f7?text=${encodeURIComponent(t('service'))}`,
+        image: `https://via.placeholder.com/200/e9d5ff/a855f7?text=${encodeURIComponent(t('services'))}`,
         createdAt: new Date().toISOString(),
     };
 

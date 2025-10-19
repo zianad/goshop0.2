@@ -135,7 +135,8 @@ const EditExpenseModal: React.FC<{
     return (
         <div className="fixed inset-0 bg-slate-800 bg-opacity-75 flex justify-center items-center z-50 p-4">
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-md w-full p-6">
-                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-4">{t('edit')} {t('expenses')}</h3>
+                {/* FIX: Use 'manageExpenses' key for the translation, as 'expenses' is not a valid key. */}
+                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-4">{t('edit')} {t('manageExpenses')}</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label htmlFor="description" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('description')}</label>
@@ -164,7 +165,8 @@ const EditExpenseModal: React.FC<{
                     <div className="flex justify-end gap-3 mt-6">
                         <button type="button" onClick={onClose} className="bg-gray-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500">{t('cancel')}</button>
                         <button type="submit" disabled={isSaving} className="bg-teal-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-700 disabled:bg-gray-400">
-                            {isSaving ? t('saving') : t('save')}
+                            {/* FIX: Use template literal for 'saving' state, as 'saving' is not a valid translation key. */}
+                            {isSaving ? `${t('save')}...` : t('save')}
                         </button>
                     </div>
                 </form>
@@ -577,7 +579,7 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
         <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">{t('allPurchasesHistory')}</h2>
         <div className="flex items-center gap-4">
           <button onClick={() => {
-              const headers = [t('date'), t('supplier'), t('reference'), t('totalAmount'), t('amountPaid'), t('remainingAmountLabel'), t('paymentMethod')];
+              const headers = [t('date'), t('suppliers'), t('reference'), t('totalAmount'), t('amountPaid'), t('remainingAmountLabel'), t('paymentMethod')];
               const data = filteredPurchases.map(p => [
                   new Date(p.date).toLocaleDateString(locale),
                   suppliers.find(s => s.id === p.supplierId)?.name || 'N/A',
@@ -603,7 +605,8 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
               <li key={p.id} className="bg-gray-50 dark:bg-slate-800/50 p-4 rounded-lg">
                 <div className="flex justify-between items-start mb-2 flex-wrap gap-2">
                   <div>
-                    <p className="font-bold text-slate-800 dark:text-slate-200">{t('supplier')}: {suppliers.find(s => s.id === p.supplierId)?.name || 'N/A'}</p>
+                    {/* FIX: Use 'suppliers' key for the translation, as 'supplier' is not a valid key. */}
+                    <p className="font-bold text-slate-800 dark:text-slate-200">{t('suppliers')}: {suppliers.find(s => s.id === p.supplierId)?.name || 'N/A'}</p>
                     <p className="text-sm text-slate-500 dark:text-slate-400">{t('date')}: {new Date(p.date).toLocaleDateString(locale)}</p>
                     {p.reference && <p className="text-sm text-slate-500 dark:text-slate-400">{t('reference')}: {(p.reference.startsWith('purchase_ref_') ? t(p.reference as any) : p.reference)}</p>}
                   </div>
@@ -617,7 +620,8 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
                    <table className="w-full text-sm mt-2 border-collapse">
                     <thead className="text-slate-600 dark:text-slate-300">
                       <tr className="bg-slate-200 dark:bg-slate-700">
-                        <th className="p-2 text-start rtl:text-right font-semibold">{t('product')}</th>
+                        {/* FIX: Use 'products' key for the translation, as 'product' is not a valid key. */}
+                        <th className="p-2 text-start rtl:text-right font-semibold">{t('products')}</th>
                         <th className="p-2 text-center font-semibold">{t('quantity')}</th>
                         <th className="p-2 text-center font-semibold">{t('purchasePrice')}</th>
                         <th className="p-2 text-start rtl:text-right font-semibold">{t('total')}</th>
@@ -661,7 +665,7 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
             <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">{t('supplierDebtsList')}</h2>
              <div className="flex items-center gap-4">
                 <button onClick={() => {
-                    const headers = [t('supplier'), t('phone'), t('debtAmount')];
+                    const headers = [t('suppliers'), t('phone'), t('debtAmount')];
                     const data = debtsBySupplier.map(d => [d.supplier.name, d.supplier.phone, `${d.debt.toFixed(2)} DH`]);
                     exportToPdf(t('supplierDebtsList'), headers, data, 'supplier_debts_report', language, t('noDataToExport'));
                 }} className="bg-cyan-600 text-white font-semibold py-2 px-3 rounded-lg hover:bg-cyan-700 transition-colors flex items-center gap-2 text-sm">
@@ -676,7 +680,8 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
           <table className="w-full text-sm text-right rtl:text-right text-slate-500 dark:text-slate-400">
              <thead className="text-xs text-slate-600 dark:text-slate-300 uppercase bg-gray-50 dark:bg-slate-700 sticky top-0">
                 <tr>
-                  <th scope="col" className="px-6 py-3">{t('supplier')}</th>
+                  {/* FIX: Use 'suppliers' key for the translation, as 'supplier' is not a valid key. */}
+                  <th scope="col" className="px-6 py-3">{t('suppliers')}</th>
                   <th scope="col" className="px-6 py-3">{t('phone')}</th>
                   <th scope="col" className="px-6 py-3">{t('debtAmount')}</th>
                 </tr>
@@ -780,7 +785,8 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
                                 <th scope="col" className="px-6 py-3">{t('date')}</th>
                                 <th scope="col" className="px-6 py-3">{t('transactionType')}</th>
                                 <th scope="col" className="px-6 py-3">{t('amount')}</th>
-                                <th scope="col" className="px-6 py-3">{t('details')}</th>
+                                {/* FIX: Use 'viewDetails' key for the translation, as 'details' is not a valid key. */}
+                                <th scope="col" className="px-6 py-3">{t('viewDetails')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
@@ -789,7 +795,8 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
                                     <td className="px-6 py-4">{new Date(tx.date).toLocaleString(locale)}</td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${tx.type === 'sale' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300'}`}>
-                                            {t(tx.type)}
+                                            {/* FIX: Use appropriate translation keys for 'sale' and 'return' types. */}
+                                            {t(tx.type === 'sale' ? 'sales' : 'returnMode')}
                                         </span>
                                     </td>
                                     <td className={`px-6 py-4 font-bold ${tx.type === 'sale' ? 'text-green-700 dark:text-green-400' : 'text-orange-700 dark:text-orange-400'}`}>
@@ -929,7 +936,7 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">{t('topSellingProducts')}</h2>
                   <button onClick={() => {
-                        const headers = [t('product'), t('quantity')];
+                        const headers = [t('products'), t('quantity')];
                         const data = topSellingVariants.map(p => [p.name, p.value]);
                         exportToPdf(t('topSellingProducts'), headers, data, 'top_selling_products', language, t('noDataToExport'));
                   }} className="bg-gray-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors flex items-center gap-2 text-xs">
@@ -956,7 +963,7 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
           <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">{t('salesHistory')}</h2>
               <button onClick={() => {
-                  const headers = [t('invoiceNumber'), t('date'), t('customer'), t('total'), t('profit'), t('itemsLabel')];
+                  const headers = [t('invoiceNumber'), t('date'), t('customer'), t('total'), t('profitLabel'), t('itemsLabel')];
                   const data = salesForHistoryView.slice().reverse().map(sale => [
                     sale.id.slice(-6).toUpperCase(),
                     new Date(sale.date).toLocaleString(locale),
@@ -982,6 +989,7 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
                               <div className="flex items-center gap-4">
                                 <div className="text-left rtl:text-right">
                                    <p className="font-bold text-lg text-cyan-600 dark:text-cyan-400">{sale.total.toFixed(2)} DH</p>
+                                   {/* FIX: Use 'profitLabel' key for the translation, as 'profit' is not a valid key. */}
                                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('profitLabel')}: {sale.profit.toFixed(2)} DH</p>
                                 </div>
                                 <button onClick={() => onReprintInvoice(sale)} className="text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 p-2 rounded-full hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors" title={t('print')}>

@@ -185,83 +185,53 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
         const newUserName = `${t('seller')} ${sellerCount + 1}`;
 
         await api.addUser({ name: newUserName, pin, role: 'seller', storeId });
-        setNewSellerPins(prev => ({ ...prev, [storeId]: '' }));
+        setNewSellerPins(prev => ({...prev, [storeId]: ''}));
+        alert(t('userAddedSuccess', {name: newUserName}));
         await fetchData();
     };
-    
-    const handleToggleStoreStatus = async (store: Store) => {
-        // If we are about to activate a store
-        if (!store.isActive) {
-            let trialExpired = false;
-            if (store.trialStartDate) {
-                const trialStart = new Date(store.trialStartDate);
-                const expiryDate = new Date(trialStart);
-                expiryDate.setDate(trialStart.getDate() + (store.trialDurationDays ?? 7));
-                if (new Date() > expiryDate) {
-                    trialExpired = true;
-                }
-            }
 
-            // If the trial was expired, activating it grants a full license by removing the trial date.
-            if (trialExpired) {
-                 if (window.confirm(t('confirmPermanentActivation', { storeName: store.name }))) {
-                    await api.updateStore({ ...store, isActive: true, trialStartDate: null });
-                 } else {
-                     return; // Do nothing if user cancels
-                 }
-            } else {
-                // Otherwise, just activate it normally.
-                await api.updateStore({ ...store, isActive: true });
+    const generateActivationCode = (store: Store) => {
+        const trialStart = store.trialStartDate ? new Date(store.trialStartDate) : new Date();
+        const expiryDate = new Date(trialStart);
+        expiryDate.setDate(trialStart.getDate() + (store.trialDurationDays ?? 7));
+        
+        if(new Date() < expiryDate && store.trialStartDate !== null) {
+            if(!window.confirm(t('confirmPermanentActivation', { storeName: store.name }))) {
+                return;
             }
-        } else {
-            // Deactivating is always a simple toggle.
-            await api.updateStore({ ...store, isActive: false });
         }
         
-        await fetchData();
-    };
-    
-    const handleToggleAiScan = async (store: Store) => {
-        await api.updateStore({ ...store, enableAiReceiptScan: !store.enableAiReceiptScan });
-        await fetchData();
-    };
-
-    const handleGenerateCode = (store: Store) => {
         const code = `PERM-${btoa(`${store.id}::${MASTER_SECRET_KEY}`)}`;
         setActivationModal({ storeName: store.name, code });
     };
 
-    const handleCopy = (textToCopy: string, identifier: string) => {
-        navigator.clipboard.writeText(textToCopy);
+    const copyToClipboard = (text: string, identifier: string) => {
+        navigator.clipboard.writeText(text);
         setCopiedIdentifier(identifier);
-        setTimeout(() => {
-            setCopiedIdentifier(null);
-        }, 2000);
+        setTimeout(() => setCopiedIdentifier(null), 2000);
+    };
+
+    const handleToggleStoreStatus = async (store: Store) => {
+        try {
+            const updatedStore = { ...store, isActive: !store.isActive };
+            await api.updateStore(updatedStore);
+            setStores(prev => prev.map(s => s.id === store.id ? updatedStore : s));
+        } catch (error: any) {
+            alert(`Error updating store status: ${error.message}`);
+        }
     };
     
-    const getTrialStatus = (store: Store) => {
-        if (!store.licenseProof) {
-            return <span className="text-xs font-bold px-2 py-1 rounded-full bg-orange-200 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300">{t('storeStatus_notActivated')}</span>;
+    const handleToggleAiScan = async (store: Store) => {
+        try {
+            const updatedStore = { ...store, enableAiReceiptScan: !store.enableAiReceiptScan };
+            await api.updateStore(updatedStore);
+            setStores(prev => prev.map(s => s.id === store.id ? updatedStore : s));
+        } catch (error: any) {
+            alert(`Error updating AI Scan status: ${error.message}`);
         }
-        
-        if (store.trialStartDate) {
-            const trialStart = new Date(store.trialStartDate);
-            const expiryDate = new Date(trialStart);
-            expiryDate.setDate(trialStart.getDate() + (store.trialDurationDays ?? 7));
-            const remainingTime = expiryDate.getTime() - new Date().getTime();
-            
-            if (remainingTime > 0) {
-                const remainingDays = Math.ceil(remainingTime / (1000 * 60 * 60 * 24));
-                return <span className="text-xs font-bold px-2 py-1 rounded-full bg-yellow-200 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300">{t('trialDaysRemaining', { days: remainingDays })}</span>;
-            } else {
-                return <span className="text-xs font-bold px-2 py-1 rounded-full bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-300">{t('trialEnded')}</span>;
-            }
-        }
-        
-        // trialStartDate is null, which means it's fully activated
-        return <span className="text-xs font-bold px-2 py-1 rounded-full bg-green-200 text-green-800 dark:bg-green-900/50 dark:text-green-300">{t('storeStatus_licensed')}</span>;
     };
-    
+
+    // FIX: Add missing handleStoreLogin function
     const handleStoreLogin = async (store: Store) => {
         try {
             const admin = await api.getAdminUserForStore(store.id);
@@ -276,287 +246,218 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
         }
     };
 
-    const handleLoginToNewStore = () => {
-        if (lastGeneratedKey) {
-            const newStoreObject = stores.find(s => s.licenseKey === lastGeneratedKey);
-            if (newStoreObject) {
-                handleStoreLogin(newStoreObject);
-            } else {
-                alert("Store data not ready. Please wait a moment and try logging in from the main list.");
-            }
-        }
-    };
-
-
-    return (
-        <div className="bg-gray-100 dark:bg-slate-900 min-h-screen">
-            {activationModal && (
-                <div className="fixed inset-0 bg-slate-800 bg-opacity-75 flex justify-center items-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-lg w-full p-6 text-center">
-                        <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-2">{t('activationCodeForStore', { storeName: activationModal.storeName })}</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('copyAndSendToClient')}</p>
-                        <div className="p-4 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-between gap-4">
-                            <p className="font-mono text-lg break-all text-slate-800 dark:text-slate-100">{activationModal.code}</p>
-                            <button onClick={() => handleCopy(activationModal.code, 'activation-code')} className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-3 rounded-lg text-sm shrink-0">
-                                {copiedIdentifier === 'activation-code' ? t('copied') : t('copy')}
-                            </button>
-                        </div>
-                        <button onClick={() => setActivationModal(null)} className="mt-6 bg-gray-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500">
-                            {t('close')}
-                        </button>
-                    </div>
+  return (
+    <>
+    {activationModal && (
+        <div className="fixed inset-0 bg-slate-800 bg-opacity-75 flex justify-center items-center z-50 p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-md w-full p-6 text-center">
+                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-2">{t('activationCodeForStore', { storeName: activationModal.storeName })}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('copyAndSendToClient')}</p>
+                <div className="p-3 bg-gray-100 dark:bg-slate-700 rounded-lg font-mono text-lg break-all mb-4">
+                    {activationModal.code}
                 </div>
-            )}
-             <header className="bg-white dark:bg-slate-800 text-white p-4 shadow-lg sticky top-0 z-40">
-                <div className="container mx-auto flex justify-between items-center">
-                    <button onClick={onGoBack} className="flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-gray-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 hover:bg-gray-300 dark:hover:bg-slate-600 rounded-lg transition-colors">
-                        <ArrowLeftIcon className="w-5 h-5"/>
-                        <span>{t('backToPortal')}</span>
+                 <button onClick={() => { copyToClipboard(activationModal.code, `code-${activationModal.storeName}`); }} className="bg-teal-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-700 w-full mb-3">
+                    {copiedIdentifier === `code-${activationModal.storeName}` ? t('copied') : t('copy')}
+                </button>
+                <button onClick={() => setActivationModal(null)} className="bg-gray-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500 w-full">
+                    {t('close')}
+                </button>
+            </div>
+        </div>
+    )}
+    <div className="min-h-screen bg-gray-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 p-4 sm:p-6 lg:p-8">
+        <header className="mb-8">
+            <div className="container mx-auto flex justify-between items-center">
+                <button onClick={onGoBack} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-lg transition-colors border dark:border-slate-700">
+                    <ArrowLeftIcon className="w-5 h-5"/> {t('backToPortal')}
+                </button>
+                <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 hidden md:block">{t('superAdminDashboard')}</h1>
+                <div className="flex items-center gap-3">
+                    <button onClick={toggleTheme} title="Toggle theme" className="p-2 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                        {theme === 'light' ? <MoonIcon className="w-5 h-5"/> : <SunIcon className="w-5 h-5" />}
                     </button>
-                    <h1 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100">{t('superAdminDashboard')}</h1>
-                    <div className="flex items-center gap-3">
-                       <button onClick={toggleTheme} title="Toggle theme" className="p-2 bg-gray-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 hover:bg-gray-300 dark:hover:bg-slate-600 rounded-lg transition-colors">
-                          {theme === 'light' ? <MoonIcon className="w-5 h-5"/> : <SunIcon className="w-5 h-5" />}
-                       </button>
-                        <button onClick={() => setLanguage(language === 'fr' ? 'ar' : 'fr')} className="px-3 py-2 text-sm font-bold bg-gray-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 hover:bg-gray-300 dark:hover:bg-slate-600 rounded-lg transition-colors">
-                            {language === 'fr' ? 'AR' : 'FR'}
-                        </button>
-                       <button onClick={onLogout} title={t('logout')} className="flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-red-500 hover:bg-red-600 rounded-lg transition-colors">
-                          <LogoutIcon className="w-5 h-5"/>
-                          <span className="hidden md:inline">{t('logout')}</span>
-                       </button>
-                    </div>
+                    <button onClick={() => setLanguage(language === 'fr' ? 'ar' : 'fr')} className="px-4 py-2 text-sm font-bold bg-white dark:bg-slate-800 text-teal-600 dark:text-teal-300 border border-gray-300 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                       {language === 'fr' ? 'العربية' : 'Français'}
+                   </button>
+                   <button onClick={onLogout} className="flex items-center gap-2 px-3 py-2 text-sm font-semibold bg-red-500 text-white hover:bg-red-600 rounded-lg transition-colors">
+                        <LogoutIcon className="w-5 h-5"/>
+                        <span className="hidden sm:inline">{t('logout')}</span>
+                    </button>
                 </div>
-            </header>
-            
-            <main className="container mx-auto p-4 sm:p-6 space-y-8">
-                 {/* Add New Store Section */}
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-                    <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2"><StoreIcon/>{t('addStore')}</h2>
-                    <form onSubmit={handleAddStore} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div className="flex flex-col items-center justify-center p-2 border-2 border-dashed rounded-lg dark:border-slate-600 row-span-2">
-                                <Logo url={newStore.logo} className="w-32 h-32 object-cover rounded-lg mb-4 bg-gray-200 dark:bg-slate-700" />
-                                <label htmlFor="logo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('storeLogo')}</label>
-                                <input type="file" id="logo" accept="image/*" onChange={handleLogoChange} className="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 dark:file:bg-teal-900/50 dark:file:text-teal-300 dark:hover:file:bg-teal-900" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('storeName')}</label>
-                                <input type="text" value={newStore.name} onChange={e => setNewStore({...newStore, name: e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" required />
-                            </div>
-                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('adminPassword')}</label>
-                                <input type="password" value={newStore.adminPassword} onChange={e => setNewStore({...newStore, adminPassword: e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" required />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('adminEmail')}</label>
-                                <input type="email" value={newStore.adminEmail} onChange={e => setNewStore({...newStore, adminEmail: e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('trialPeriodDays')}</label>
-                                <input type="number" min="0" value={newStore.trialDurationDays} onChange={e => setNewStore({...newStore, trialDurationDays: parseInt(e.target.value, 10) || 0})} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" required />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('address')} ({t('optional')})</label>
-                                <input type="text" value={newStore.address} onChange={e => setNewStore({...newStore, address: e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" />
-                            </div>
-                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('ice')} ({t('optional')})</label>
-                                <input type="text" value={newStore.ice} onChange={e => setNewStore({...newStore, ice: e.target.value})} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" />
-                            </div>
-                            <div className="lg:col-span-3 space-y-3">
-                                <div className="flex items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                                    <div className="flex items-center gap-2">
-                                        <SparklesIcon className="w-8 h-8 text-purple-500 dark:text-purple-400" />
-                                        <div>
-                                            <h4 className="font-bold text-slate-700 dark:text-slate-200">{t('enableAiScan')}</h4>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">{t('aiScanFeatureDescription')}</p>
-                                        </div>
-                                    </div>
-                                    <div className="ml-auto rtl:ml-0 rtl:mr-auto">
-                                        <ToggleSwitch
-                                            checked={newStore.enableAiReceiptScan}
-                                            onChange={() => setNewStore(prev => ({...prev, enableAiReceiptScan: !prev.enableAiReceiptScan}))}
-                                            labelOn={t('aiScanEnabled')}
-                                            labelOff={t('aiScanDisabled')}
-                                            title={t('enableAiScan')}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between gap-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                                    <div className="flex items-center gap-2">
-                                        <KeyIcon className="w-8 h-8 text-blue-500 dark:text-blue-400" />
-                                        <div>
-                                            <h4 className="font-bold text-slate-700 dark:text-slate-200">{t('activateImmediately')}</h4>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">{t('activateImmediatelyDesc')}</p>
-                                        </div>
-                                    </div>
-                                    <div className="ml-auto rtl:ml-0 rtl:mr-auto">
-                                        <ToggleSwitch
-                                            checked={activateImmediately}
-                                            onChange={() => setActivateImmediately(prev => !prev)}
-                                            labelOn={t('activeOnCreation')}
-                                            labelOff={t('inactiveOnCreation')}
-                                            title={t('activateImmediately')}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
+            </div>
+        </header>
+
+        <div className="container mx-auto space-y-8">
+             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+                <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2"><StoreIcon />{t('addStore')}</h2>
+                <form onSubmit={handleAddStore} className="space-y-4">
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                           <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('storeName')}</label>
+                           <input type="text" value={newStore.name} onChange={e => setNewStore(p => ({...p, name: e.target.value}))} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600" required/>
                         </div>
+                         <div>
+                           <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('adminPassword')}</label>
+                           <input type="text" value={newStore.adminPassword} onChange={e => setNewStore(p => ({...p, adminPassword: e.target.value}))} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600" required/>
+                        </div>
+                        <div>
+                           <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('adminEmail')}</label>
+                           <input type="email" value={newStore.adminEmail} onChange={e => setNewStore(p => ({...p, adminEmail: e.target.value}))} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600" />
+                        </div>
+                        <div>
+                           <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('address')}</label>
+                           <input type="text" value={newStore.address} onChange={e => setNewStore(p => ({...p, address: e.target.value}))} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600" />
+                        </div>
+                         <div>
+                           <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('ice')}</label>
+                           <input type="text" value={newStore.ice} onChange={e => setNewStore(p => ({...p, ice: e.target.value}))} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600" />
+                        </div>
+                        <div>
+                           <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('trialPeriodDays')}</label>
+                           <input type="number" value={newStore.trialDurationDays} onChange={e => setNewStore(p => ({...p, trialDurationDays: parseInt(e.target.value, 10)}))} min="0" className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600" required/>
+                        </div>
+                     </div>
+                     <div className="flex items-center gap-4">
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">{t('storeLogoLabel')}</label>
+                        <Logo url={newStore.logo} className="w-12 h-12 rounded-lg bg-gray-200 object-cover" />
+                        <input type="file" id="logo" accept="image/*" onChange={handleLogoChange} className="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 dark:file:bg-teal-900/50 dark:file:text-teal-300 dark:hover:file:bg-teal-900"/>
+                    </div>
+                    <div className="flex flex-wrap gap-6 pt-4">
+                        <ToggleSwitch checked={activateImmediately} onChange={() => setActivateImmediately(!activateImmediately)} labelOn={t('activeOnCreation')} labelOff={t('inactiveOnCreation')} title={t('activateImmediatelyDesc')} />
+                        <ToggleSwitch checked={newStore.enableAiReceiptScan} onChange={() => setNewStore(p => ({...p, enableAiReceiptScan: !p.enableAiReceiptScan}))} labelOn={t('aiScanEnabled')} labelOff={t('aiScanDisabled')} title={t('aiScanFeatureDescription')} />
+                    </div>
+                     <button type="submit" className="w-full md:w-auto bg-teal-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-700 flex items-center justify-center gap-2">
+                        <PlusIcon /> {t('addStoreButton')}
+                    </button>
+                </form>
+             </div>
 
-                        <button type="submit" className="w-full md:w-auto bg-teal-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-2"><PlusIcon/>{t('addStoreButton')}</button>
-                    </form>
-                    {lastGeneratedKey && lastGeneratedPassword && (
-                        <div className="mt-4 p-4 bg-green-100 dark:bg-green-900/50 rounded-lg text-green-800 dark:text-green-300">
-                            <h3 className="font-bold">{t('storeCreatedSuccess')}</h3>
-                            <div className="mt-2 space-y-4 text-sm">
-                                <p><strong>{t('storeName')}:</strong> {stores.find(s => s.licenseKey === lastGeneratedKey)?.name}</p>
-                                
-                                <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded border border-yellow-300 dark:border-yellow-700">
-                                    <p className="font-semibold">{t('adminPassword')}:</p>
-                                    <p className="font-mono text-xl my-1">{lastGeneratedPassword}</p>
-                                    <p className="text-xs">{t('useThisPasswordAfter')}</p>
-                                </div>
-
-                                <div>
-                                    <p className="font-semibold mt-2">{t('licenseKey')}:</p>
-                                    <p className="text-xs mb-1">{t('useThisToLoginFirst')}</p>
-                                    <div className="flex items-center gap-4 p-3 bg-white dark:bg-slate-700 rounded-md">
-                                        <p className="font-mono text-lg break-all flex-grow">{lastGeneratedKey}</p>
-                                        <button onClick={() => handleCopy(lastGeneratedKey, 'new-key')} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-lg text-sm">{copiedIdentifier === 'new-key' ? t('copied') : t('copy')}</button>
-                                    </div>
-                                </div>
+             {lastGeneratedKey && (
+                <div className="bg-green-100 dark:bg-green-900/50 p-4 rounded-xl shadow-lg border border-green-300 dark:border-green-700">
+                    <h3 className="text-xl font-bold text-green-800 dark:text-green-300 mb-2">{t('storeCreatedSuccess')}</h3>
+                    <div className="space-y-2 text-sm">
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">{t('licenseKey')}:</span>
+                            <span className="font-mono bg-white dark:bg-slate-700 p-1 rounded">{lastGeneratedKey}</span>
+                            <button onClick={() => copyToClipboard(lastGeneratedKey, 'key')} className="text-xs bg-gray-200 dark:bg-slate-600 p-1 rounded">{copiedIdentifier === 'key' ? t('copied') : t('copy')}</button>
+                        </div>
+                         <p className="text-xs text-slate-500 dark:text-slate-400">{t('useThisToLoginFirst')}</p>
+                    </div>
+                    {lastGeneratedPassword && (
+                        <div className="space-y-2 text-sm mt-3 pt-3 border-t border-green-200 dark:border-green-800">
+                            <div className="flex items-center gap-2">
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">{t('adminPassword')}:</span>
+                                <span className="font-mono bg-white dark:bg-slate-700 p-1 rounded">{lastGeneratedPassword}</span>
+                                <button onClick={() => copyToClipboard(lastGeneratedPassword, 'pw')} className="text-xs bg-gray-200 dark:bg-slate-600 p-1 rounded">{copiedIdentifier === 'pw' ? t('copied') : t('copy')}</button>
                             </div>
-                             <button
-                                onClick={handleLoginToNewStore}
-                                className="mt-4 w-full bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-700 transition-colors flex items-center justify-center gap-2"
-                            >
-                                <ArrowRightIcon className="w-5 h-5" />
-                                {t('loginAsAdmin')}
-                            </button>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{t('useThisPasswordAfter')}</p>
                         </div>
                     )}
                 </div>
+             )}
 
-                {/* Manage Stores Section */}
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-                    <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-4">{t('manageStores')}</h2>
-                    <div className="space-y-6">
-                        {stores.length > 0 ? stores.map(store => {
-                             const storeUsers = usersByStore[store.id] || [];
-                             const adminUser = storeUsers.find(u => u.role === 'admin');
-                             const sellers = storeUsers.filter(u => u.role === 'seller');
-                            return (
-                                <div key={store.id} className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl shadow-md border-l-4 dark:border-l-4 border-teal-500">
-                                    <div className="flex justify-between items-start flex-wrap gap-4 mb-4">
-                                        <div className="flex items-center gap-4">
-                                            <Logo url={store.logo} className="w-16 h-16 rounded-lg bg-white object-cover" />
-                                            <div>
-                                                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{store.name}</h3>
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="text-sm font-mono text-slate-500 dark:text-slate-400">{t('licenseKey')}:</span>
-                                                    <span className="font-mono text-sm bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded break-all">{store.licenseKey}</span>
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => handleCopy(store.licenseKey, store.id)} 
-                                                        className="bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 hover:bg-teal-200 dark:hover:bg-teal-800/50 text-xs font-bold py-1 px-2 rounded-md"
-                                                    >
-                                                        {copiedIdentifier === store.id ? t('copied') : t('copy')}
-                                                    </button>
-                                                </div>
-                                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t('trialDurationDisplay', { days: store.trialDurationDays })}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col items-end gap-3">
-                                            <div className="flex items-center gap-4">
-                                                <ToggleSwitch
-                                                    checked={store.isActive}
-                                                    onChange={() => handleToggleStoreStatus(store)}
-                                                    labelOn={t('storeStatus_active')}
-                                                    labelOff={t('storeStatus_inactive')}
-                                                    title={t('toggleStoreStatus')}
-                                                />
-                                                <button onClick={() => handleDeleteStore(store.id, store.name)} className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50" title={t('deleteStore')}><TrashIcon/></button>
-                                            </div>
-                                            {getTrialStatus(store)}
-                                        </div>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+                <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-4">{t('manageStores')}</h2>
+                <div className="space-y-6">
+                    {stores.length > 0 ? stores.map(store => {
+                        const storeUsers = usersByStore[store.id] || [];
+                        const admin = storeUsers.find(u => u.role === 'admin');
+                        const sellers = storeUsers.filter(u => u.role === 'seller');
+                        
+                        let statusText = t('storeStatus_notActivated');
+                        let statusColor = 'bg-gray-200 text-gray-800';
+                        if(store.isActive) {
+                             if(store.trialStartDate) {
+                                const trialStart = new Date(store.trialStartDate);
+                                const expiryDate = new Date(trialStart);
+                                expiryDate.setDate(trialStart.getDate() + (store.trialDurationDays ?? 7));
+                                const remainingTime = expiryDate.getTime() - new Date().getTime();
+                                if(remainingTime > 0) {
+                                    const remainingDays = Math.ceil(remainingTime / (1000 * 60 * 60 * 24));
+                                    statusText = t('trialDaysRemaining', {days: remainingDays});
+                                    statusColor = 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300';
+                                } else {
+                                     statusText = t('trialEnded');
+                                     statusColor = 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300';
+                                }
+                             } else {
+                                statusText = t('storeStatus_licensed');
+                                statusColor = 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300';
+                             }
+                        }
+
+                        return (
+                             <details key={store.id} className="p-4 border dark:border-slate-700 rounded-lg">
+                                <summary className="cursor-pointer flex justify-between items-center font-semibold text-slate-800 dark:text-slate-200">
+                                    <div className="flex items-center gap-3">
+                                        <Logo url={store.logo} className="w-10 h-10 rounded-lg bg-gray-200 object-cover" />
+                                        <span className="font-bold text-lg">{store.name}</span>
+                                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${statusColor}`}>{statusText}</span>
                                     </div>
-                                    
-                                    <div className="space-y-4 pt-4 border-t-2 border-dashed dark:border-slate-700">
-                                        <div className="flex items-center justify-between gap-4 p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
-                                            <div className="flex items-center gap-2">
-                                                <SparklesIcon className="w-5 h-5 text-purple-500" />
-                                                <h4 className="font-bold text-slate-600 dark:text-slate-300">{t('enableAiScan')}</h4>
-                                            </div>
-                                             <ToggleSwitch
-                                                checked={store.enableAiReceiptScan || false}
-                                                onChange={() => handleToggleAiScan(store)}
-                                                labelOn={t('aiScanEnabled')}
-                                                labelOff={t('aiScanDisabled')}
-                                                title={t('enableAiScan')}
-                                            />
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={(e) => { e.preventDefault(); handleStoreLogin(store); }} className="text-sm bg-teal-600 text-white px-3 py-1 rounded-md hover:bg-teal-700">{t('loginAsAdmin')}</button>
+                                        <button onClick={(e) => { e.preventDefault(); handleDeleteStore(store.id, store.name); }} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50" title={t('deleteStore')}>
+                                            <TrashIcon className="w-5 h-5"/>
+                                        </button>
+                                    </div>
+                                </summary>
+
+                                <div className="mt-4 pt-4 border-t dark:border-slate-700 space-y-4">
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                        <div className="space-y-2">
+                                            <p><strong>{t('licenseKey')}:</strong> <span className="font-mono bg-gray-100 dark:bg-slate-700 p-1 rounded">{store.licenseKey}</span></p>
+                                            <p><strong>{t('address')}:</strong> {store.address || 'N/A'}</p>
+                                            <p><strong>{t('ice')}:</strong> {store.ice || 'N/A'}</p>
+                                            <p><strong>{t('trialPeriodDays')}:</strong> {t('trialDurationDisplay', {days: store.trialDurationDays})}</p>
                                         </div>
-                                        <h4 className="font-bold text-slate-600 dark:text-slate-300">{t('storeUsersAndPins')}</h4>
-                                        <div className="space-y-3">
-                                            {adminUser && (
-                                                <div className="flex items-center gap-3">
-                                                    <span className="font-semibold w-24">{t('admin')} ({adminUser.name})</span>
-                                                    <input 
-                                                        type="password" 
-                                                        placeholder={t('newPassword')}
-                                                        defaultValue=""
-                                                        onChange={(e) => handleCredentialChange(adminUser.id, e.target.value)}
-                                                        className="w-full md:w-48 p-2 border rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" />
+                                         <div className="space-y-3">
+                                            <ToggleSwitch checked={store.isActive} onChange={() => handleToggleStoreStatus(store)} labelOn={t('storeStatus_active')} labelOff={t('storeStatus_inactive')} title={t('toggleStoreStatus')} />
+                                            <ToggleSwitch checked={store.enableAiReceiptScan || false} onChange={() => handleToggleAiScan(store)} labelOn={t('aiScanEnabled')} labelOff={t('aiScanDisabled')} title={t('aiScanFeatureDescription')} />
+                                         </div>
+                                     </div>
+                                    
+                                     {/* Users */}
+                                     <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                                        <h4 className="font-bold text-slate-600 dark:text-slate-300 mb-3">{t('storeUsersAndPins')}</h4>
+                                         <div className="space-y-3">
+                                            {admin && (
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-semibold">{admin.name} ({t('admin')})</span>
+                                                    <input type="text" placeholder={t('newPassword')} onChange={e => handleCredentialChange(admin.id, e.target.value)} className="w-40 text-sm p-1 border rounded bg-white dark:bg-slate-600 dark:border-slate-500" />
                                                 </div>
                                             )}
                                             {sellers.map(seller => (
-                                                <div key={seller.id} className="flex items-center gap-3">
-                                                    <span className="font-semibold w-24">{seller.name}</span>
-                                                    <input 
-                                                        type="password" 
-                                                        placeholder={t('newPin')}
-                                                        defaultValue=""
-                                                        onChange={(e) => handleCredentialChange(seller.id, e.target.value)}
-                                                        className="w-full md:w-48 p-2 border rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" />
+                                                 <div key={seller.id} className="flex items-center justify-between">
+                                                    <span className="font-semibold">{seller.name}</span>
+                                                    <input type="text" placeholder={t('newPin')} onChange={e => handleCredentialChange(seller.id, e.target.value)} className="w-40 text-sm p-1 border rounded bg-white dark:bg-slate-600 dark:border-slate-500" />
                                                 </div>
                                             ))}
-                                        </div>
-                                        <div className="flex justify-between items-center flex-wrap gap-4 mt-4">
-                                            <button onClick={() => handleSaveCredentials(store.id)} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm">{t('saveChanges')}</button>
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                  type="password"
-                                                  placeholder={t('newSellerPinPlaceholder')}
-                                                  value={newSellerPins[store.id] || ''}
-                                                  onChange={(e) => setNewSellerPins(prev => ({...prev, [store.id]: e.target.value}))}
-                                                  className="p-2 border rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600 text-sm w-48"
-                                                />
-                                                <button onClick={() => handleAddNewSeller(store.id)} className="bg-teal-600 text-white font-bold py-2 px-3 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center text-sm"><UserPlusIcon className="w-4 h-4 mr-1 rtl:ml-1 rtl:mr-0"/>{t('add')}</button>
-                                            </div>
-                                        </div>
-
-                                        <div className="p-4 bg-slate-100 dark:bg-slate-700/50 rounded-lg mt-4">
-                                            <h4 className="font-bold text-slate-600 dark:text-slate-300 mb-2 flex items-center gap-2"><SettingsIcon className="w-5 h-5" />{t('permanentActivation')}</h4>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">{t('permanentActivationDesc')}</p>
-                                            <button 
-                                                onClick={() => handleGenerateCode(store)}
-                                                disabled={!store.licenseProof || !store.trialStartDate}
-                                                className="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 disabled:bg-gray-400 dark:disabled:bg-slate-600 transition-colors flex items-center gap-2 text-sm"
-                                            >
-                                                <KeyIcon className="w-4 h-4" />
-                                                {t('generateActivationCode')}
-                                            </button>
-                                        </div>
-
-                                    </div>
+                                             <button onClick={() => handleSaveCredentials(store.id)} className="text-xs bg-blue-600 text-white font-semibold py-1 px-3 rounded-md hover:bg-blue-700">{t('saveChanges')}</button>
+                                         </div>
+                                         <div className="mt-4 pt-4 border-t dark:border-slate-600 flex items-center gap-2">
+                                            <input type="text" value={newSellerPins[store.id] || ''} onChange={e => setNewSellerPins(p => ({...p, [store.id]: e.target.value}))} placeholder={t('newSellerPinPlaceholder')} className="flex-grow text-sm p-1 border rounded bg-white dark:bg-slate-600 dark:border-slate-500" />
+                                            <button onClick={() => handleAddNewSeller(store.id)} className="text-xs bg-green-600 text-white font-semibold py-1 px-3 rounded-md hover:bg-green-700 flex items-center gap-1"><UserPlusIcon className="w-4 h-4"/> {t('addSeller')}</button>
+                                         </div>
+                                     </div>
+                                     
+                                     {/* Activation */}
+                                     <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                                        <h4 className="font-bold text-slate-600 dark:text-slate-300 mb-2">{t('permanentActivation')}</h4>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">{t('permanentActivationDesc')}</p>
+                                        <button onClick={() => generateActivationCode(store)} className="text-sm bg-orange-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-orange-600 flex items-center gap-2">
+                                            <KeyIcon className="w-4 h-4"/> {t('generateActivationCode')}
+                                        </button>
+                                     </div>
                                 </div>
-                            )
-                        }) : <p className="text-center text-slate-500 dark:text-slate-400 py-8">{t('noStoresAdded')}</p>}
-                    </div>
+                            </details>
+                        )
+                    }) : <p className="text-center text-slate-500 dark:text-slate-400 py-8">{t('noStoresAdded')}</p>}
                 </div>
-            </main>
+            </div>
         </div>
-    );
+    </div>
+    </>
+  );
 };
 
 export default SuperAdminDashboard;

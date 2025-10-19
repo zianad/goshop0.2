@@ -68,7 +68,8 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ customer, s
 
         autoTable(doc, {
             startY: 60,
-            head: [[t('product'), t('quantity'), t('price'), t('total')]],
+            // FIX: Use 'products' key for the translation, as 'product' is not a valid key.
+            head: [[t('products'), t('quantity'), t('price'), t('total')]],
             body: tableBody,
             theme: 'grid',
             styles: { font: 'Amiri', halign: language === 'ar' ? 'right' : 'left' },
@@ -165,7 +166,8 @@ const DebtManagementModal: React.FC<DebtManagementModalProps> = ({ customer, deb
                 <p className="text-slate-500 dark:text-slate-400 mb-4">{t('totalDebt')} <span className="font-bold text-red-600 dark:text-red-400">{debt.toFixed(2)} DH</span></p>
                 
                 <div>
-                    <label htmlFor="paymentAmount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('paymentAmount')}</label>
+                    {/* FIX: Use 'amountToPay' key for the translation, as 'paymentAmount' is not a valid key. */}
+                    <label htmlFor="paymentAmount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('amountToPay')}</label>
                     <input
                         type="number"
                         id="paymentAmount"
@@ -349,7 +351,8 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ storeId, custom
 
     autoTable(doc, {
         startY: 60,
-        head: [[t('product'), t('quantity'), t('price'), t('total')]],
+        // FIX: Use 'products' key for the translation, as 'product' is not a valid key.
+        head: [[t('products'), t('quantity'), t('price'), t('total')]],
         body: tableBody,
         theme: 'grid',
         styles: {
@@ -434,7 +437,8 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ storeId, custom
 
         autoTable(doc, {
             startY: 60,
-            head: [[t('product'), t('quantity'), t('price'), t('total')]],
+            // FIX: Use 'products' key for the translation, as 'product' is not a valid key.
+            head: [[t('products'), t('quantity'), t('price'), t('total')]],
             body: tableBody,
             theme: 'grid',
             styles: {
@@ -495,8 +499,9 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ storeId, custom
                     <label htmlFor="email" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('email')} ({t('optional')})</label>
                     <input type="email" id="email" value={newCustomer.email} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600" onChange={handleInputChange} />
                   </div>
+                  {/* FIX: Use 'addNewCustomer' key for the translation, as 'addCustomer' is not a valid key. */}
                   <button type="submit" className="w-full bg-teal-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors">
-                    {t('addCustomer')}
+                    {t('addNewCustomer')}
                   </button>
               </div>
           </form>

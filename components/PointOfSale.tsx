@@ -306,7 +306,8 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
       price,
       quantity,
       type: 'service', // Treat as a service to not affect stock
-      image: `https://via.placeholder.com/150/e9d5ff/a855f7?text=${encodeURIComponent(t('service'))}`,
+      // FIX: Use 'services' key for the translation, as 'service' is not a valid key.
+      image: `https://via.placeholder.com/150/e9d5ff/a855f7?text=${encodeURIComponent(t('services'))}`,
       isCustom: true,
     };
     setCart(prev => [...prev, newItem]);
@@ -410,7 +411,8 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
                 price: item.prixHT,
                 quantity: item.quantite,
                 type: 'service',
-                image: `https://via.placeholder.com/150/e9d5ff/a855f7?text=${encodeURIComponent(t('service'))}`,
+                // FIX: Use 'services' key for the translation, as 'service' is not a valid key.
+                image: `https://via.placeholder.com/150/e9d5ff/a855f7?text=${encodeURIComponent(t('services'))}`,
                 isCustom: true,
             };
         });

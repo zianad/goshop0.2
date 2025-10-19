@@ -26,7 +26,8 @@ const LowStockAlert: React.FC<LowStockAlertProps> = ({ products, variants, suppl
             <li key={v.id}>
               <strong>{product.name} - {v.name}</strong>
               {product.supplierId && (
-                  <span className="text-xs text-orange-600 dark:text-orange-400"> ({t('supplier')}: {suppliers.find(s => s.id === product.supplierId)?.name || t('unknown')})</span>
+                  // FIX: Use 'suppliers' key for the translation, as 'supplier' is not a valid key.
+                  <span className="text-xs text-orange-600 dark:text-orange-400"> ({t('suppliers')}: {suppliers.find(s => s.id === product.supplierId)?.name || t('unknown')})</span>
               )}
             </li>
           );

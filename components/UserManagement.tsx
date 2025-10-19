@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { User, Store } from '../types';
 import { UserPlusIcon, TrashIcon, KeyIcon, StoreIcon, SparklesIcon, DatabaseZapIcon, FileDownIcon, UploadIcon } from './Icons';
 import { translations } from '../translations';
@@ -35,6 +35,28 @@ const UserManagement: React.FC<UserManagementProps> = ({ activeUser, store, stor
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [restoreText, setRestoreText] = useState('');
+  const [restoreValidation, setRestoreValidation] = useState<{ isValid: boolean; message: string }>({ isValid: false, message: '' });
+
+  useEffect(() => {
+    if (!showRestoreModal) {
+      setRestoreText('');
+      setRestoreValidation({ isValid: false, message: '' });
+    }
+  }, [showRestoreModal]);
+
+  useEffect(() => {
+    if (restoreText.trim() === '') {
+        setRestoreValidation({ isValid: false, message: '' });
+        return;
+    }
+    try {
+        JSON.parse(restoreText);
+        setRestoreValidation({ isValid: true, message: t('jsonValidMessage') });
+    } catch (e: any) {
+        setRestoreValidation({ isValid: false, message: `${t('jsonInvalidMessage')}: ${e.message}` });
+    }
+}, [restoreText, t]);
+
 
   const adminUser = useMemo(() => users.find(u => u.role === 'admin'), [users]);
   const sellerUsers = useMemo(() => users.filter(u => u.role === 'seller'), [users]);
@@ -151,9 +173,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ activeUser, store, stor
           reader.onload = (event) => {
               const text = event.target?.result;
               if (typeof text === 'string') {
-                  // Clean the large image data before passing it on
-                  const cleanedText = text.replace(/"(?:logo|image)":\s*"data:image\/[^"]+"/g, '"$1": ""');
-                  onRestore(cleanedText);
+                  onRestore(text);
               } else {
                   alert(t('restoreError'));
               }
@@ -164,10 +184,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ activeUser, store, stor
   };
 
   const handleTextRestore = () => {
-      if (restoreText.trim()) {
-          // Clean the large image data before passing it on
-          const cleanedText = restoreText.replace(/"(?:logo|image)":\s*"data:image\/[^"]+"/g, '"$1": ""');
-          onRestore(cleanedText);
+      if (restoreValidation.isValid && restoreText.trim()) {
+          onRestore(restoreText);
           setShowRestoreModal(false);
           setRestoreText('');
       }
@@ -315,9 +333,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ activeUser, store, stor
                     placeholder={t('pasteBackupContent')}
                     className="w-full h-64 p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600 font-mono text-xs"
                 />
+                {restoreValidation.message && (
+                    <p className={`text-sm mt-2 font-semibold ${restoreValidation.isValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {restoreValidation.message}
+                    </p>
+                )}
                 <div className="flex justify-end gap-3 mt-4">
                     <button onClick={() => setShowRestoreModal(false)} className="bg-gray-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500">{t('cancel')}</button>
-                    <button onClick={handleTextRestore} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700">{t('restoreButton')}</button>
+                    <button onClick={handleTextRestore} disabled={!restoreValidation.isValid} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {t('restoreButton')}
+                    </button>
                 </div>
             </div>
         </div>
