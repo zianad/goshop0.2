@@ -273,7 +273,8 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onSuperAdminLogin, t, langu
             <h2 className="text-2xl font-bold text-orange-600 dark:text-orange-400">{t('trialHasExpired')}</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400">{t('contactAdminToActivate')}</p>
              <div>
-                <label htmlFor="activationCode" className="sr-only">{t('activationCode')}</label>
+                {/* FIX: Use 'enterActivationCode' key for the translation, as 'activationCode' is not a valid key. */}
+                <label htmlFor="activationCode" className="sr-only">{t('enterActivationCode')}</label>
                 <input 
                   id="activationCode" 
                   type="text" 

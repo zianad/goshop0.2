@@ -45,7 +45,6 @@ const PurchaseHistoryModal: React.FC<{
                                             <table className="w-full text-sm mt-2 text-slate-700 dark:text-slate-600">
                                                 <thead className="bg-gray-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                                                     <tr className={language === 'ar' ? 'text-right' : 'text-left'}>
-                                                        {/* FIX: Use 'products' key for the translation, as 'product' is not a valid key. */}
                                                         <th className="p-2 font-semibold">{t('products')}</th>
                                                         <th className="p-2 font-semibold text-center">{t('quantity')}</th>
                                                         <th className="p-2 font-semibold text-center">{t('purchasePrice')}</th>
@@ -324,4 +323,359 @@ const NewPurchaseModal: React.FC<NewPurchaseModalProps> = ({ supplier, products,
                                 {newProductVariants.map((variant, index) => (
                                     <div key={index} className="p-4 bg-slate-50 dark:bg-slate-600/50 rounded-lg border dark:border-slate-500 relative">
                                         <button type="button" onClick={() => removeVariantForm(index)} className="absolute top-2 right-2 rtl:right-auto rtl:left-2 text-red-500 hover:text-red-700 z-10"><TrashIcon className="w-5 h-5"/></button>
-                                        <
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                            <div className="flex flex-col items-center justify-center p-2">
+                                                <img src={variant.image || `https://via.placeholder.com/150/f1f5f9/64748b?text=${t('variants')}`} alt="variant" className="w-20 h-20 object-cover rounded-lg mb-2 bg-gray-200" />
+                                                <input type="file" accept="image/*" onChange={e => handleVariantImageFormChange(index, e)} className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 dark:file:bg-purple-900/50 dark:file:text-purple-300 dark:hover:file:bg-purple-900" />
+                                            </div>
+                                            <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('variantName')}</label>
+                                                    <input type="text" value={variant.name} onChange={e => handleVariantFormChange(index, 'name', e.target.value)} placeholder={t('variantNamePlaceholder')} className="w-full text-sm p-2 border rounded-lg bg-white dark:bg-slate-600 dark:border-slate-500" required />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('stockQuantity')}</label>
+                                                    <input type="number" value={variant.stockQuantity} onChange={e => handleVariantFormChange(index, 'stockQuantity', parseFloat(e.target.value) || 0)} className="w-full text-sm p-2 border rounded-lg bg-white dark:bg-slate-600 dark:border-slate-500" min="0" step="0.5"/>
+                                                </div>
+                                                 <div>
+                                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('purchasePrice')}</label>
+                                                    <input type="number" value={variant.purchasePrice} onChange={e => handleVariantFormChange(index, 'purchasePrice', parseFloat(e.target.value) || 0)} className="w-full text-sm p-2 border rounded-lg bg-white dark:bg-slate-600 dark:border-slate-500" required min="0" step="0.01"/>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('sellingPrice')}</label>
+                                                    <input type="number" value={variant.price} onChange={e => handleVariantFormChange(index, 'price', parseFloat(e.target.value) || 0)} className="w-full text-sm p-2 border rounded-lg bg-white dark:bg-slate-600 dark:border-slate-500" required min="0" step="0.01"/>
+                                                </div>
+                                                <div className="sm:col-span-2">
+                                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('barcode')}</label>
+                                                    <input type="text" value={variant.barcode || ''} onChange={e => handleVariantFormChange(index, 'barcode', e.target.value)} placeholder={t('barcodePlaceholder')} className="w-full text-sm p-2 border rounded-lg bg-white dark:bg-slate-600 dark:border-slate-500" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                
+                                <button type="submit" className="w-full mt-4 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">{t('saveAndAddToList')}</button>
+                            </form>
+                        )}
+                    </div>
+
+                    {/* Items List */}
+                    <div className="space-y-2">
+                        {items.map((item, index) => (
+                            <div key={index} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+                                <span className="flex-grow font-semibold text-slate-700 dark:text-slate-200 text-sm">{item.productName} - {item.variantName}</span>
+                                <input type="number" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value))} className="w-20 text-center p-1 border rounded-md bg-white dark:bg-slate-700 dark:border-slate-600" min="0.5" step="0.5" />
+                                <input type="number" value={item.purchasePrice} onChange={e => handleItemChange(index, 'purchasePrice', parseFloat(e.target.value))} className="w-24 text-center p-1 border rounded-md bg-white dark:bg-slate-700 dark:border-slate-600" min="0" step="0.01" />
+                                <span className="w-24 font-bold text-slate-800 dark:text-slate-100">{(item.quantity * item.purchasePrice).toFixed(2)} DH</span>
+                                <button onClick={() => handleRemoveItem(index)} className="text-red-500 hover:text-red-700"><TrashIcon className="w-5 h-5"/></button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="pt-4 mt-4 border-t dark:border-slate-700">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                                <label className="font-semibold text-slate-600 dark:text-slate-300">{t('paymentMethod')}:</label>
+                                <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-48 text-sm px-2 py-1 border rounded-md bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600">
+                                    <option value="cash">{t('cash')}</option>
+                                    <option value="card">{t('card')}</option>
+                                    <option value="transfer">{t('transfer')}</option>
+                                    <option value="check">{t('check')}</option>
+                                </select>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <label className="font-semibold text-slate-600 dark:text-slate-300">{t('amountPaid')}:</label>
+                                <input type="number" value={amountPaid} onChange={e => setAmountPaid(e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-48 px-2 py-1 border rounded-md text-right bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600" min="0" step="0.01" />
+                            </div>
+                             {remainingAmount > 0 && (
+                                <div className="flex justify-between items-center font-bold text-red-600 dark:text-red-400">
+                                    <span>{t('remainingDebt')}:</span>
+                                    <span>{remainingAmount.toFixed(2)} DH</span>
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-4 bg-gray-100 dark:bg-slate-700 rounded-lg text-right rtl:text-left">
+                            <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">{t('totalAmount')}</p>
+                            <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">{totalAmount.toFixed(2)} DH</p>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button onClick={onClose} className="bg-gray-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500">{t('cancel')}</button>
+                        <button onClick={handleSubmit} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">{t('completePurchase')}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+interface SupplierManagementProps {
+  storeId: string;
+  suppliers: Supplier[];
+  products: Product[];
+  variants: ProductVariant[];
+  purchases: Purchase[];
+  categories: Category[];
+  addSupplier: (supplier: Omit<Supplier, 'id'>) => Promise<Supplier | undefined>;
+  deleteSupplier: (id: string) => Promise<void>;
+  addPurchase: (purchase: Omit<Purchase, 'id'>) => Promise<void>;
+  updatePurchase: (purchase: Purchase) => Promise<void>;
+  addProduct: (productData: Omit<Product, 'id'>, variantsData: (Omit<ProductVariant, 'id' | 'productId' | 'storeId'> & { stockQuantity?: number | undefined })[]) => Promise<{ product: Product; variants: ProductVariant[]; }>;
+  t: TFunction;
+  language: Language;
+}
+
+const ITEMS_PER_PAGE = 10;
+
+const SupplierManagement: React.FC<SupplierManagementProps> = ({ storeId, suppliers, products, variants, purchases, categories, addSupplier, deleteSupplier, addPurchase, updatePurchase, addProduct, t, language }) => {
+  const [newSupplier, setNewSupplier] = useState({ name: '', phone: '', email: '' });
+  const [feedback, setFeedback] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const [viewingHistoryFor, setViewingHistoryFor] = useState<Supplier | null>(null);
+  const [addingPurchaseFor, setAddingPurchaseFor] = useState<Supplier | null>(null);
+  const [managingPaymentsFor, setManagingPaymentsFor] = useState<Supplier | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const supplierDebts = useMemo(() => {
+    const debts = new Map<string, number>();
+    purchases.forEach(purchase => {
+      if (purchase.supplierId && purchase.remainingAmount > 0) {
+        const currentDebt = debts.get(purchase.supplierId) || 0;
+        debts.set(purchase.supplierId, currentDebt + purchase.remainingAmount);
+      }
+    });
+    return debts;
+  }, [purchases]);
+  
+  const purchasesBySupplier = useMemo(() => {
+      const map = new Map<string, Purchase[]>();
+      purchases.forEach(p => {
+          if(p.supplierId) {
+            const existing = map.get(p.supplierId) || [];
+            existing.push(p);
+            map.set(p.supplierId, existing);
+          }
+      });
+      return map;
+  }, [purchases]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const filteredSuppliers = useMemo(() => {
+    if (!searchQuery) {
+      return suppliers;
+    }
+    return suppliers.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [suppliers, searchQuery]);
+
+  const paginatedSuppliers = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredSuppliers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredSuppliers, currentPage]);
+
+  const totalPages = Math.ceil(filteredSuppliers.length / ITEMS_PER_PAGE);
+
+  const clearFeedback = () => setTimeout(() => setFeedback(null), 4000);
+
+  const handleAddSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+    if (!newSupplier.name || !newSupplier.phone) {
+        setFeedback({type: 'error', message: t('nameAndPhoneRequired')});
+        clearFeedback();
+        return;
+    }
+    if (suppliers.some(s => s.phone.trim() === newSupplier.phone.trim())) {
+        setFeedback({type: 'error', message: t('supplierExistsError', { phone: newSupplier.phone.trim() })});
+        clearFeedback();
+        return;
+    }
+
+    await addSupplier({ ...newSupplier, storeId });
+    setNewSupplier({ name: '', phone: '', email: '' });
+    setFeedback({type: 'success', message: t('supplierAddedSuccess', { name: newSupplier.name })});
+    clearFeedback();
+  };
+  
+  const handleDeleteSupplier = async (supplier: Supplier) => {
+    setFeedback(null);
+    if (window.confirm(t('confirmSupplierDelete', { name: supplier.name }))) {
+      try {
+        await deleteSupplier(supplier.id);
+        setFeedback({ type: 'success', message: t('supplierDeletedSuccess', { name: supplier.name }) });
+      } catch (error: any) {
+        const debt = supplierDebts.get(supplier.id) || 0;
+        const errorMessage = t((error.message || 'supplierDeleteError') as keyof typeof translations.fr, { name: supplier.name, debt: debt.toFixed(2) });
+        setFeedback({ type: 'error', message: errorMessage });
+      }
+      clearFeedback();
+    }
+  };
+
+  const handleRecordPayment = async () => {
+    if (!managingPaymentsFor) return;
+    const amount = parseFloat(paymentAmount);
+    const debt = supplierDebts.get(managingPaymentsFor.id) || 0;
+
+    if (isNaN(amount) || amount <= 0 || amount > debt) {
+        alert(t('enterValidPayment'));
+        return;
+    }
+
+    const paymentPurchase: Omit<Purchase, 'id'> = {
+        storeId,
+        supplierId: managingPaymentsFor.id,
+        date: new Date().toISOString(),
+        items: [],
+        totalAmount: 0,
+        amountPaid: -amount,
+        remainingAmount: -amount,
+        paymentMethod: 'cash',
+        reference: `Paiement dette`
+    };
+
+    await addPurchase(paymentPurchase);
+
+    setFeedback({ type: 'success', message: t('paymentRecorded') });
+    clearFeedback();
+    setManagingPaymentsFor(null);
+    setPaymentAmount('');
+  };
+
+  const handleExport = () => {
+    const headers = [t('name'), t('phone'), t('email'), t('debt')];
+    const data = suppliers.map(s => [s.name, s.phone, s.email || 'N/A', `${(supplierDebts.get(s.id) || 0).toFixed(2)} DH`]);
+    exportToPdf(t('supplierList'), headers, data, 'suppliers_report', language, t('noDataToExport'));
+  };
+
+  return (
+    <>
+      {viewingHistoryFor && (
+        <PurchaseHistoryModal 
+            supplier={viewingHistoryFor}
+            purchases={purchasesBySupplier.get(viewingHistoryFor.id) || []}
+            onClose={() => setViewingHistoryFor(null)}
+            t={t}
+            language={language}
+        />
+      )}
+      {addingPurchaseFor && (
+        <NewPurchaseModal 
+            supplier={addingPurchaseFor}
+            products={products}
+            variants={variants}
+            categories={categories}
+            onClose={() => setAddingPurchaseFor(null)}
+            onSave={addPurchase}
+            addProduct={addProduct}
+            t={t}
+            storeId={storeId}
+        />
+      )}
+      {managingPaymentsFor && (
+         <div className="fixed inset-0 bg-slate-800 bg-opacity-75 flex justify-center items-center z-50 p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-md w-full p-6">
+                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-2">{t('managePayments')} - {managingPaymentsFor.name}</h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-4">{t('supplierDebt')}: <span className="font-bold text-red-600 dark:text-red-400">{(supplierDebts.get(managingPaymentsFor.id) || 0).toFixed(2)} DH</span></p>
+                <div>
+                    <label htmlFor="paymentAmount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('amountToPay')}</label>
+                    <input type="number" id="paymentAmount" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600" placeholder="0.00" min="0.01" step="0.01" />
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                    <button onClick={() => setManagingPaymentsFor(null)} className="bg-gray-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500">{t('cancel')}</button>
+                    <button onClick={handleRecordPayment} disabled={!paymentAmount} className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{t('recordPayment')}</button>
+                </div>
+            </div>
+        </div>
+      )}
+      <div className="space-y-6">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+          <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2"><TruckIcon/>{t('addNewSupplier')}</h2>
+          <form onSubmit={handleAddSupplier} className="grid sm:grid-cols-4 gap-4 items-end">
+              <div className="sm:col-span-1">
+                <label htmlFor="name" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('name')}</label>
+                <input type="text" id="name" value={newSupplier.name} onChange={e => setNewSupplier({...newSupplier, name: e.target.value})} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600" required/>
+              </div>
+              <div className="sm:col-span-1">
+                <label htmlFor="phone" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('phone')}</label>
+                <input type="tel" id="phone" value={newSupplier.phone} onChange={e => setNewSupplier({...newSupplier, phone: e.target.value})} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600" required/>
+              </div>
+              <div className="sm:col-span-1">
+                <label htmlFor="email" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('email')} ({t('optional')})</label>
+                <input type="email" id="email" value={newSupplier.email} onChange={e => setNewSupplier({...newSupplier, email: e.target.value})} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600"/>
+              </div>
+              {/* FIX: Use 'addNewSupplier' key for the translation, as 'addSupplier' is not a valid key. */}
+              <button type="submit" className="w-full bg-teal-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-700">{t('addNewSupplier')}</button>
+          </form>
+          {feedback && <div className={`mt-4 p-3 rounded-lg text-sm font-semibold ${feedback.type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>{feedback.message}</div>}
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+          <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
+              <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">{t('supplierList')}</h2>
+               <div className="flex-grow max-w-sm">
+                <input type="text" placeholder={t('searchByName')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600" />
+               </div>
+              <button onClick={handleExport} className="bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 flex items-center gap-2 text-sm"><FileDownIcon className="w-4 h-4"/>{t('exportToPdf')}</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-right rtl:text-left text-slate-500 dark:text-slate-400">
+              <thead className="text-xs text-slate-600 dark:text-slate-300 uppercase bg-gray-50 dark:bg-slate-700">
+                <tr>
+                  <th scope="col" className="px-6 py-3">{t('name')}</th>
+                  <th scope="col" className="px-6 py-3">{t('phone')}</th>
+                  <th scope="col" className="px-6 py-3">{t('email')}</th>
+                  <th scope="col" className="px-6 py-3">{t('supplierDebt')}</th>
+                  <th scope="col" className="px-6 py-3 text-left rtl:text-right">{t('actions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedSuppliers.map(supplier => {
+                    const debt = supplierDebts.get(supplier.id) || 0;
+                    return (
+                        <tr key={supplier.id} className="bg-white dark:bg-slate-800 border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                            <th scope="row" className="px-6 py-4 font-medium text-slate-700 dark:text-slate-100 whitespace-nowrap">{supplier.name}</th>
+                            <td className="px-6 py-4">{supplier.phone}</td>
+                            <td className="px-6 py-4">{supplier.email || 'N/A'}</td>
+                            <td className={`px-6 py-4 font-bold ${debt > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>{debt > 0 ? `${debt.toFixed(2)} DH` : t('noDebt')}</td>
+                            <td className="px-6 py-4">
+                                <div className="flex items-center justify-start gap-2">
+                                    <button onClick={() => setAddingPurchaseFor(supplier)} className="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 text-xs font-bold py-1 px-3 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800/50">{t('newPurchase')}</button>
+                                    <button onClick={() => setViewingHistoryFor(supplier)} className="bg-gray-100 text-gray-800 dark:bg-slate-900/50 dark:text-slate-300 text-xs font-bold py-1 px-3 rounded-full hover:bg-gray-200 dark:hover:bg-slate-800/50">{t('history')}</button>
+                                    {debt > 0 && <button onClick={() => setManagingPaymentsFor(supplier)} className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 text-xs font-bold py-1 px-3 rounded-full hover:bg-green-200 dark:hover:bg-green-800/50">{t('managePayments')}</button>}
+                                    <button onClick={() => handleDeleteSupplier(supplier)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50"><TrashIcon className="w-5 h-5"/></button>
+                                </div>
+                            </td>
+                        </tr>
+                    );
+                })}
+              </tbody>
+            </table>
+             {totalPages > 1 && (
+                <div className="pt-4 flex justify-center items-center gap-4 border-t border-slate-200 dark:border-slate-700 mt-4">
+                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 bg-gray-200 dark:bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-slate-600" aria-label={t('previous')}>
+                        <ArrowLeftIcon className="w-5 h-5" />
+                    </button>
+                    <span className="font-semibold text-slate-600 dark:text-slate-300">
+                        {t('page')} {currentPage} / {totalPages}
+                    </span>
+                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 bg-gray-200 dark:bg-slate-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-slate-600" aria-label={t('next')}>
+                        <ArrowRightIcon className="w-5 h-5" />
+                    </button>
+                </div>
+            )}
+            {paginatedSuppliers.length === 0 && <p className="text-center text-slate-500 dark:text-slate-400 py-8">{searchQuery ? t('noResultsFound') : t('noSuppliersAdded')}</p>}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default SupplierManagement;
