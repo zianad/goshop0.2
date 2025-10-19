@@ -158,6 +158,7 @@ const App: React.FC = () => {
   // Data sync on store change
   const syncDataForStore = useCallback(async (storeId: string) => {
     setIsLoading(true);
+    const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
     try {
       const dataSources: { key: keyof StoreTypeMap; name: string; fetch: (id: string) => Promise<any[]>; store: ReturnType<typeof useIndexedDBStore<any>>; }[] = [
         { key: 'products', name: t('products'), fetch: api.getProducts, store: productsStore },
@@ -181,6 +182,7 @@ const App: React.FC = () => {
         if (fetchedData && fetchedData.length > 0) {
           await ds.store.bulkAdd(fetchedData);
         }
+        await delay(100); // Give the browser a moment to breathe
       }
       
       if (activeStore) {
