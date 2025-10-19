@@ -1,3 +1,4 @@
+
 import { supabase } from './supabaseClient';
 // FIX: Add 'PurchaseItem' to the type import to resolve a missing type error.
 import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, CartItem, Return, StockBatch, VariantFormData, PurchaseItem } from './types';
@@ -285,6 +286,7 @@ export const updateProductWithVariants = async (productData: Product, variantsDa
 export const deleteProduct = (id: string) => deleteSingle('products', id);
 
 // --- Stock & Purchases ---
+export const addStockBatch = (batch: Omit<StockBatch, 'id'>): Promise<StockBatch> => addSingle<StockBatch>('stockBatches', batch);
 
 export const addStock = async (data: { variantId: string; quantity: number; purchasePrice: number; sellingPrice: number; supplierId: string | undefined; }) => {
     const variant = (await supabase.from('productVariants').select('*').eq('id', data.variantId).single()).data;

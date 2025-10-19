@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function getValue<T>(key: string, initialValue: T | (() => T)) {
   const savedValue = sessionStorage.getItem(key);
