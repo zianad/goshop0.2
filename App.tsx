@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // Import types
@@ -407,10 +405,17 @@ const App: React.FC = () => {
   const handleRestore = useCallback(async (backupJson: string) => {
     if (!window.confirm(t('restoreConfirm'))) return;
     try {
-        const backupData = JSON.parse(backupJson);
-        if (typeof backupData !== 'object' || backupData === null) throw new Error("Invalid backup format");
+        const trimmedJson = backupJson.trim();
+        if (!trimmedJson) {
+            throw new Error("Pasted content is empty.");
+        }
+        const backupData = JSON.parse(trimmedJson);
+
+        if (typeof backupData !== 'object' || backupData === null || Array.isArray(backupData)) {
+            throw new Error("Invalid backup format. The backup must be a JSON object containing keys like 'products', 'customers', etc.");
+        }
         
-        const allStoresMap = {
+        const allStoresMap: { [key in keyof StoreTypeMap]?: ReturnType<typeof useIndexedDBStore<any>> } = {
             products: productsStore, productVariants: variantsStore, sales: salesStore, expenses: expensesStore, users: usersStore,
             returns: returnsStore, stores: storesStore, customers: customersStore, suppliers: suppliersStore, categories: categoriesStore,
             purchases: purchasesStore, stockBatches: stockBatchesStore
@@ -419,23 +424,43 @@ const App: React.FC = () => {
         setIsLoading(true);
         setLoadingMessage(t('restoreButton'));
         
-        for (const store of Object.values(allStoresMap)) { await store.clear(); }
-        for (const [key, store] of Object.entries(allStoresMap)) {
-            if (backupData[key] && Array.isArray(backupData[key])) {
-                await store.bulkAdd(backupData[key]);
+        let restoredSomething = false;
+
+        for (const key in backupData) {
+            if (Object.prototype.hasOwnProperty.call(backupData, key) && key in allStoresMap) {
+                const storeKey = key as keyof StoreTypeMap;
+                const store = allStoresMap[storeKey];
+                const dataToRestore = backupData[storeKey];
+
+                if (store && Array.isArray(dataToRestore)) {
+                    await store.clear();
+                    await store.bulkAdd(dataToRestore);
+                    restoredSomething = true;
+                }
             }
         }
         
+        if (!restoredSomething) {
+            throw new Error("Backup file contains no recognizable data to restore (e.g., 'products', 'customers').");
+        }
+
         alert(t('restoreSuccess'));
         window.location.reload();
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Restore failed:", error);
-        alert(error instanceof SyntaxError ? t('jsonParseError') : t('restoreError'));
+        const errorMessage = error instanceof SyntaxError 
+            ? t('jsonParseError') 
+            : `${t('restoreError')}${error.message ? `: ${error.message}` : ''}`;
+        alert(errorMessage);
     } finally {
         setIsLoading(false);
     }
-  }, [t, productsStore, variantsStore, salesStore, expensesStore, usersStore, returnsStore, storesStore, customersStore, suppliersStore, categoriesStore, purchasesStore, stockBatchesStore]);
+}, [
+    t, productsStore, variantsStore, salesStore, expensesStore, usersStore,
+    returnsStore, storesStore, customersStore, suppliersStore, categoriesStore,
+    purchasesStore, stockBatchesStore
+]);
   
   const handleUpdateStore = useCallback(async (updatedData: Partial<Store>) => {
       if (!activeStore) return;
