@@ -1,8 +1,10 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Product, ProductVariant, Supplier, Category, VariantFormData } from '../types';
 import { TrashIcon, FileDownIcon, PlusIcon, EditIcon, ChevronDownIcon, SearchIcon, BarcodeIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons';
 import { exportToPdf } from '../utils/helpers';
-import { translations } from '../translations';
+// FIX: Changed import path to be explicit for module resolution.
+import { translations } from '../translations.ts';
 import { PrintableBarcode } from './PrintableBarcode';
 
 type Language = 'fr' | 'ar';

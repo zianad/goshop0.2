@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Product, ProductVariant, CartItem, Customer, Category, Sale, User, Store } from '../types.ts';
 import { TrashIcon, BarcodeIcon, PlusIcon, SparklesIcon } from './Icons.tsx';
