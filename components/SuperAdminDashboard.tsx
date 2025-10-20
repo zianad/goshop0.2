@@ -374,7 +374,8 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onLoginAsStor
                                 const remainingTime = expiryDate.getTime() - new Date().getTime();
                                 if(remainingTime > 0) {
                                     const remainingDays = Math.ceil(remainingTime / (1000 * 60 * 60 * 24));
-                                    statusText = t('trialDaysRemaining', {days: remainingDays});
+                                    // FIX: Use 'trialStatusDaysRemaining' key for the translation to avoid duplicates.
+                                    statusText = t('trialStatusDaysRemaining', {days: remainingDays});
                                     statusColor = 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300';
                                 } else {
                                      statusText = t('trialEnded');

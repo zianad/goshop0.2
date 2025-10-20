@@ -1,4 +1,3 @@
-
 import { supabase } from './supabaseClient';
 // FIX: Add 'PurchaseItem' to the type import to resolve a missing type error.
 import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, CartItem, Return, StockBatch, VariantFormData, PurchaseItem } from './types';
@@ -207,24 +206,26 @@ export const updateProductWithVariants = async (productData: Product, variantsDa
     const productVariants = existingVariants.filter(v => v.productId === productData.id);
 
     const variantsToUpdate: ProductVariant[] = [];
-    const variantsToInsert: Omit<ProductVariant, 'id'>[] = [];
-    const newStockBatches: Omit<StockBatch, 'id'>[] = [];
+    const variantsToInsert: Omit<ProductVariant, 'id' | 'stockQuantity'>[] = [];
+    const newStockBatchesToCreate: Omit<StockBatch, 'id'>[] = [];
 
     for (const formData of variantsData) {
         if (formData.id) { // Existing variant
             const existing = productVariants.find(v => v.id === formData.id);
             if (existing) {
+                const { stockQuantity, ...rest } = formData;
                 variantsToUpdate.push({
                     ...existing,
-                    ...formData,
+                    ...rest,
                     id: formData.id,
                     priceSemiWholesale: formData.priceSemiWholesale || 0,
                     priceWholesale: formData.priceWholesale || 0,
                 });
             }
         } else { // New variant
+            const { stockQuantity, ...rest } = formData;
             variantsToInsert.push({
-                ...formData,
+                ...rest,
                 productId: productData.id,
                 storeId: productData.storeId,
                 priceSemiWholesale: formData.priceSemiWholesale || 0,
@@ -244,17 +245,17 @@ export const updateProductWithVariants = async (productData: Product, variantsDa
     // 3. Insert new variants
     let newVariants: ProductVariant[] = [];
     if (variantsToInsert.length > 0) {
-        const { data, error } = await supabase.from('productVariants').insert(variantsToInsert.map(v => ({...v, stockQuantity: undefined}))).select();
+        const { data, error } = await supabase.from('productVariants').insert(variantsToInsert).select();
         checkError(error, 'updateProductWithVariants (insert variants)');
         newVariants = data || [];
         
         // Add initial stock for new variants
         newVariants.forEach(nv => {
-            const formData = variantsToInsert.find(v => v.name === nv.name);
-            if(formData && 'stockQuantity' in formData && (formData as any).stockQuantity > 0){
-                 newStockBatches.push({
+            const formData = variantsData.find(v => !v.id && v.name === nv.name);
+            if(formData && formData.stockQuantity > 0){
+                 newStockBatchesToCreate.push({
                     variantId: nv.id,
-                    quantity: (formData as any).stockQuantity,
+                    quantity: formData.stockQuantity,
                     purchasePrice: nv.purchasePrice,
                     storeId: productData.storeId,
                     createdAt: new Date().toISOString()
@@ -270,11 +271,10 @@ export const updateProductWithVariants = async (productData: Product, variantsDa
         checkError(error, 'updateProductWithVariants (delete variants)');
     }
     
-    // FIX: Add new stock batches and select them back to get IDs, resolving a type error in App.tsx.
     // 5. Add new stock batches and get them back with IDs
     let insertedStockBatches: StockBatch[] = [];
-    if (newStockBatches.length > 0) {
-        const { data, error } = await supabase.from('stockBatches').insert(newStockBatches).select();
+    if (newStockBatchesToCreate.length > 0) {
+        const { data, error } = await supabase.from('stockBatches').insert(newStockBatchesToCreate).select();
         checkError(error, 'updateProductWithVariants (stock)');
         insertedStockBatches = data || [];
     }
@@ -286,7 +286,6 @@ export const updateProductWithVariants = async (productData: Product, variantsDa
 export const deleteProduct = (id: string) => deleteSingle('products', id);
 
 // --- Stock & Purchases ---
-export const addStockBatch = (batch: Omit<StockBatch, 'id'>): Promise<StockBatch> => addSingle<StockBatch>('stockBatches', batch);
 
 export const addStock = async (data: { variantId: string; quantity: number; purchasePrice: number; sellingPrice: number; supplierId: string | undefined; }) => {
     const variant = (await supabase.from('productVariants').select('*').eq('id', data.variantId).single()).data;
@@ -314,162 +313,4 @@ export const addStock = async (data: { variantId: string; quantity: number; purc
     };
 
     const { data: purchase, error: purchaseError } = await supabase.from('purchases').insert(purchaseData).select().single();
-    checkError(purchaseError, 'addStock (purchase)');
-    if (!purchase) throw new Error("Purchase creation failed");
-
-    const stockBatchData = {
-        variantId: data.variantId,
-        quantity: data.quantity,
-        purchasePrice: data.purchasePrice,
-        storeId: variant.storeId,
-        createdAt: new Date().toISOString()
-    };
-    
-    const { data: newStockBatch, error: stockError } = await supabase.from('stockBatches').insert(stockBatchData).select().single();
-    checkError(stockError, 'addStock (stock)');
-    if (!newStockBatch) throw new Error("Stock batch creation failed");
-
-    const updatedVariantData = { ...variant, purchasePrice: data.purchasePrice, price: data.sellingPrice };
-    const { data: updatedVariant, error: variantError } = await supabase.from('productVariants').update(updatedVariantData).eq('id', data.variantId).select().single();
-    checkError(variantError, 'addStock (variant update)');
-    if (!updatedVariant) throw new Error("Variant update failed");
-
-    return { purchase, newStockBatch, updatedVariant };
-};
-
-export const addPurchase = async (purchase: Omit<Purchase, 'id'>): Promise<{newPurchase: Purchase, newStockBatches: StockBatch[]}> => {
-    const { data: newPurchase, error } = await supabase.from('purchases').insert(purchase).select().single();
-    checkError(error, 'addPurchase');
-    if (!newPurchase) throw new Error("Purchase creation failed");
-    
-    const stockBatchesToInsert = purchase.items.map(item => ({
-        variantId: item.variantId,
-        quantity: item.quantity,
-        purchasePrice: item.purchasePrice,
-        storeId: purchase.storeId,
-        createdAt: purchase.date,
-    }));
-
-    const { data: newStockBatches, error: stockError } = await supabase.from('stockBatches').insert(stockBatchesToInsert).select();
-    checkError(stockError, 'addPurchase (stock)');
-    
-    return { newPurchase, newStockBatches: newStockBatches || [] };
-};
-
-export const updatePurchase = (purchase: Purchase) => updateSingle('purchases', purchase);
-
-
-// --- Sales & Returns ---
-export const completeSale = async (cart: CartItem[], downPayment: number, customerId: string | undefined, finalTotal: number, userId: string, storeId: string): Promise<Sale> => {
-    const profit = cart.reduce((acc, item) => {
-        if(item.purchasePrice){
-            return acc + (item.price - item.purchasePrice) * item.quantity;
-        }
-        return acc + item.price * item.quantity; // Assume 100% profit for services/custom
-    }, 0);
-
-    const sale: Omit<Sale, 'id'> = {
-        storeId,
-        userId,
-        date: new Date().toISOString(),
-        items: cart,
-        total: finalTotal,
-        downPayment,
-        remainingAmount: finalTotal - downPayment,
-        profit,
-        customerId
-    };
-
-    return addSingle<Sale>('sales', sale);
-};
-
-export const processReturn = async (itemsToReturn: CartItem[], userId: string, storeId: string): Promise<Return> => {
-    const refundAmount = itemsToReturn.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    const profitLost = itemsToReturn.reduce((acc, item) => {
-        if(item.purchasePrice) {
-            return acc + (item.price - item.purchasePrice) * item.quantity;
-        }
-        return acc;
-    }, 0);
-    
-    const newReturn: Omit<Return, 'id'> = {
-        storeId,
-        userId,
-        date: new Date().toISOString(),
-        items: itemsToReturn,
-        refundAmount,
-        profitLost,
-    };
-    return addSingle<Return>('returns', newReturn);
-};
-
-export const payCustomerDebt = async (customerId: string, amount: number, userId: string, storeId: string): Promise<Sale> => {
-    const sale: Omit<Sale, 'id'> = {
-        storeId,
-        userId,
-        customerId,
-        date: new Date().toISOString(),
-        items: [{
-            id: `debt_payment_${Date.now()}`,
-            productId: `debt_payment_${Date.now()}`,
-            storeId,
-            name: `Paiement de dette`,
-            price: amount,
-            quantity: 1,
-            type: 'service',
-            image: '',
-            isCustom: true
-        }],
-        total: 0, // It's a payment, not a sale of goods, so total is 0.
-        downPayment: -amount, // Negative downpayment to reduce debt.
-        remainingAmount: -amount,
-        profit: 0
-    };
-    return addSingle<Sale>('sales', sale);
-};
-
-// --- Expenses ---
-export const addExpense = (expense: Omit<Expense, 'id'>) => addSingle<Expense>('expenses', expense);
-export const updateExpense = (expense: Expense) => updateSingle('expenses', expense);
-export const deleteExpense = (id: string) => deleteSingle('expenses', id);
-
-// --- Returns ---
-export const deleteReturn = (id: string) => deleteSingle('returns', id);
-export const deleteAllReturns = async (storeId: string): Promise<void> => {
-    const { error } = await supabase.from('returns').delete().eq('storeId', storeId);
-    checkError(error, 'deleteAllReturns');
-};
-
-// --- Customers ---
-export const addCustomer = (customer: Omit<Customer, 'id'>) => addSingle<Customer>('customers', customer);
-export const deleteCustomer = async (id: string) => {
-    const { data: sales, error } = await supabase.from('sales').select('remainingAmount').eq('customerId', id);
-    checkError(error, 'deleteCustomer (check debt)');
-    const totalDebt = sales?.reduce((sum, s) => sum + s.remainingAmount, 0) || 0;
-    if (totalDebt > 0) {
-        throw new Error('customerDeleteErrorHasDebt');
-    }
-    await deleteSingle('customers', id);
-};
-
-// --- Suppliers ---
-export const addSupplier = (supplier: Omit<Supplier, 'id'>) => addSingle<Supplier>('suppliers', supplier);
-export const deleteSupplier = async (id: string) => {
-    const { data: purchases, error } = await supabase.from('purchases').select('remainingAmount').eq('supplierId', id);
-    checkError(error, 'deleteSupplier (check debt)');
-    const totalDebt = purchases?.reduce((sum, p) => sum + p.remainingAmount, 0) || 0;
-    if (totalDebt > 0) {
-        throw new Error('supplierDeleteErrorHasDebt');
-    }
-    await deleteSingle('suppliers', id);
-};
-
-// --- Categories ---
-export const addCategory = (category: Omit<Category, 'id'>) => addSingle<Category>('categories', category);
-export const updateCategory = (category: Category) => updateSingle('categories', category);
-export const deleteCategory = (id: string) => deleteSingle('categories', id);
-
-// --- Users ---
-export const addUser = (user: Omit<User, 'id'>) => addSingle<User>('users', user);
-export const updateUser = (user: User) => updateSingle('users', user);
-export const deleteUser = (id: string) => deleteSingle('users', id);
+    checkError(purchaseError, 'addStock (

@@ -1,10 +1,80 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { User, Store } from '../types';
-import { UserPlusIcon, TrashIcon, EditIcon, SaveIcon, KeyIcon, SettingsIcon, DatabaseZapIcon, UploadIcon, FileDownIcon } from './Icons'; // Assuming SaveIcon exists
+import { UserPlusIcon, TrashIcon, KeyIcon, SettingsIcon, UploadIcon, FileDownIcon } from './Icons'; 
 import { translations } from '../translations';
 
 type TFunction = (key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => string;
+
+interface RestoreFromTextModalProps {
+  onClose: () => void;
+  onRestore: (jsonString: string) => Promise<void>;
+  t: TFunction;
+}
+
+const RestoreFromTextModal: React.FC<RestoreFromTextModalProps> = ({ onClose, onRestore, t }) => {
+    const [restoreText, setRestoreText] = useState('');
+
+    const validation = useMemo(() => {
+        if (!restoreText) {
+            return { valid: false, message: '' };
+        }
+        try {
+            const parsedData = JSON.parse(restoreText);
+            if (typeof parsedData !== 'object' || parsedData === null) {
+                return { valid: false, message: t('jsonInvalidNotObject') };
+            }
+            // Add a semantic check to ensure it's a valid backup file
+            if (!parsedData.stores || !parsedData.users) {
+                return { valid: false, message: t('invalidBackupStructure') };
+            }
+            return { valid: true, message: t('jsonValid') };
+        } catch (error) {
+            if (error instanceof SyntaxError) {
+                 if(restoreText.trim().startsWith('import')) {
+                    return { valid: false, message: t('jsonInvalidNotCode') };
+                }
+                return { valid: false, message: `${t('jsonInvalid')}: ${error.message}` };
+            }
+            return { valid: false, message: t('unknownError') };
+        }
+    }, [restoreText, t]);
+
+    const handleRestoreClick = () => {
+        if (validation.valid) {
+            onRestore(restoreText);
+        }
+    };
+    
+    return (
+        <div className="fixed inset-0 bg-slate-800 bg-opacity-75 flex justify-center items-center z-50 p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-2xl w-full p-6 flex flex-col max-h-[90vh]">
+                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-2">{t('restoreFromText')}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('restoreFromTextDesc')}</p>
+                <textarea
+                    value={restoreText}
+                    onChange={(e) => setRestoreText(e.target.value)}
+                    placeholder={t('pasteJsonHere')}
+                    className="w-full flex-grow p-3 border rounded-lg bg-gray-50 dark:bg-slate-900 text-sm font-mono dark:border-slate-700 min-h-[300px] resize-none"
+                    spellCheck="false"
+                />
+                 <div className="mt-2 text-sm font-semibold" style={{ minHeight: '1.25rem' }}>
+                    {validation.message && (
+                        <p className={validation.valid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                            {validation.message}
+                        </p>
+                    )}
+                </div>
+                <div className="flex justify-end gap-3 mt-4">
+                    <button onClick={onClose} className="bg-gray-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500">{t('cancel')}</button>
+                    <button onClick={handleRestoreClick} disabled={!validation.valid} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 disabled:bg-gray-400 dark:disabled:bg-slate-500 disabled:cursor-not-allowed">
+                        {t('restoreButton')}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 interface UserManagementProps {
   activeUser: User;
@@ -42,7 +112,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     enableAiReceiptScan: store.enableAiReceiptScan,
   });
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
-  const restoreInputRef = React.useRef<HTMLInputElement>(null);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
 
 
   const handleNewUserChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -116,23 +186,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
     showFeedback('success', t('storeUpdatedSuccess'));
   };
   
-  const handleRestoreFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const text = e.target?.result;
-        if (typeof text === 'string') {
-            await onRestore(text);
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = ''; // Allow re-selecting the same file
-  };
-
-
   return (
+    <>
+    {showRestoreModal && <RestoreFromTextModal onClose={() => setShowRestoreModal(false)} onRestore={onRestore} t={t} />}
+
     <div className="space-y-8">
       {feedback && (
         <div className={`fixed top-5 right-5 z-50 p-4 rounded-lg shadow-lg text-sm font-semibold ${feedback.type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
@@ -241,13 +298,13 @@ const UserManagement: React.FC<UserManagementProps> = ({
             <div className="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
                 <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2"><UploadIcon />{t('restoreData')}</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-3">{t('restoreDataDesc')}</p>
-                <input type="file" ref={restoreInputRef} onChange={handleRestoreFileSelect} className="hidden" accept=".json"/>
-                <button onClick={() => restoreInputRef.current?.click()} className="w-full bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-700">{t('restoreButton')}</button>
+                <button onClick={() => setShowRestoreModal(true)} className="w-full bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-700">{t('restoreFromText')}</button>
             </div>
         </div>
       </div>
 
     </div>
+    </>
   );
 };
 
