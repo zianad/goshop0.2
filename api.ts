@@ -1,3 +1,4 @@
+
 import { supabase } from './supabaseClient';
 // FIX: Add 'PurchaseItem' to the type import to resolve a missing type error.
 import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, CartItem, Return, StockBatch, VariantFormData, PurchaseItem } from './types';
@@ -109,8 +110,11 @@ export const getAllUsers = async (): Promise<User[]> => {
 };
 
 export const getAdminUserForStore = async (storeId: string): Promise<User | null> => {
-    const { data, error } = await supabase.from('users').select('*').eq('storeId', storeId).eq('role', 'admin').single();
-    checkError(error, 'getAdminUserForStore');
+    const { data, error } = await supabase.from('users').select('*').eq('storeId', storeId).eq('role', 'admin').maybeSingle();
+    // Do not throw on no user found, it's a valid case
+    if(error && error.code !== 'PGRST116') {
+      checkError(error, 'getAdminUserForStore');
+    }
     return data;
 };
 

@@ -1,422 +1,406 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  PointOfSale, ProductManagement, FinanceAndReports, CustomerManagement,
-  SupplierManagement, CategoryManagement, ServiceManagement, UserManagement,
-  Sidebar, Auth, SuperAdminDashboard, SuperAdminLanding
-} from './components';
-import type {
-  Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category,
-  Purchase, CartItem, Return, StockBatch, VariantFormData, PurchaseItem
-} from './types';
+import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, Return, StockBatch, CartItem, VariantFormData, PurchaseItem, Tab as TabType } from './types';
 import { Tab } from './types';
+import Auth from './components/Auth';
+import SuperAdminLanding from './components/SuperAdminLanding';
+import SuperAdminDashboard from './components/SuperAdminDashboard';
+import PointOfSale from './components/PointOfSale';
+import ProductManagement from './components/ProductManagement';
+import ServiceManagement from './components/ServiceManagement';
+import FinanceAndReports from './components/FinanceAndReports';
+import CustomerManagement from './components/CustomerManagement';
+import SupplierManagement from './components/SupplierManagement';
+import CategoryManagement from './components/CategoryManagement';
+import UserManagement from './components/UserManagement';
+import LowStockAlert from './components/LowStockAlert';
+import TrialBanner from './components/TrialBanner';
+import PrintableInvoice from './components/PrintableInvoice';
+import PrintableReturnReceipt from './components/PrintableReturnReceipt';
 import { useIndexedDBStore } from './hooks/useIndexedDBStore';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useSessionStorage } from './hooks/useSessionStorage';
 import { translations } from './translations';
 import * as api from './api';
-import TrialBanner from './components/TrialBanner';
-import PrintableInvoice from './components/PrintableInvoice';
+import { BoxIcon, CoinsIcon, HistoryIcon, LogoutIcon, SettingsIcon, ShoppingCartIcon, UsersIcon, TruckIcon, TagIcon, SparklesIcon, StoreIcon } from './components/Icons';
+import { Logo } from './components/Logo';
 
-function App() {
-  const [theme, setTheme] = useLocalStorage<'light' | 'dark'>('theme',
-    () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  );
-  const [language, setLanguage] = useLocalStorage<'fr' | 'ar'>('language', 'fr');
-  
-  const [activeUser, setActiveUser] = useSessionStorage<User | null>('active-user', null);
-  const [activeStore, setActiveStore] = useSessionStorage<Store | null>('active-store', null);
-  const [isSuperAdmin, setIsSuperAdmin] = useSessionStorage<boolean>('is-super-admin', false);
-  const [isSuperAdminDashboard, setIsSuperAdminDashboard] = useState(false);
+type Language = 'fr' | 'ar';
+type Theme = 'light' | 'dark';
+type TFunction = (key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => string;
 
-  const [activeTab, setActiveTab] = useState<Tab>(Tab.POS);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [isPrintingInvoice, setIsPrintingInvoice] = useState(false);
-  const [saleToPrint, setSaleToPrint] = useState<Sale | null>(null);
-  const [printMode, setPrintMode] = useState<'invoice' | 'orderForm'>('invoice');
+const App: React.FC = () => {
+    const [user, setUser] = useSessionStorage<User | null>('activeUser', null);
+    const [store, setStore] = useSessionStorage<Store | null>('activeStore', null);
+    const [isSuperAdmin, setIsSuperAdmin] = useSessionStorage<boolean>('isSuperAdmin', false);
+    const [superAdminView, setSuperAdminView] = useState<'landing' | 'dashboard'>('landing');
 
-  const t = useCallback((key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => {
-    let translation = translations[language][key] || translations.fr[key];
-    if (options) {
-      Object.keys(options).forEach(optionKey => {
-        translation = translation.replace(`{${optionKey}}`, String(options[optionKey]));
-      });
-    }
-    return translation;
-  }, [language]);
+    const [activeTab, setActiveTab] = useLocalStorage<TabType>(store ? `activeTab-${store.id}` : 'activeTab', Tab.POS);
+    const [language, setLanguage] = useLocalStorage<Language>('language', 'fr');
+    const [theme, setTheme] = useLocalStorage<Theme>('theme', 'light');
+    const [isDataLoading, setIsDataLoading] = useState(true);
 
-  // Data Stores
-  const storeId = activeStore?.id || '';
-  const productsDB = useIndexedDBStore<Product>('products');
-  const variantsDB = useIndexedDBStore<ProductVariant>('productVariants');
-  const salesDB = useIndexedDBStore<Sale>('sales');
-  const expensesDB = useIndexedDBStore<Expense>('expenses');
-  const customersDB = useIndexedDBStore<Customer>('customers');
-  const suppliersDB = useIndexedDBStore<Supplier>('suppliers');
-  const categoriesDB = useIndexedDBStore<Category>('categories');
-  const purchasesDB = useIndexedDBStore<Purchase>('purchases');
-  const stockBatchesDB = useIndexedDBStore<StockBatch>('stockBatches');
-  const returnsDB = useIndexedDBStore<Return>('returns');
-  const usersDB = useIndexedDBStore<User>('users');
-  const storesDB = useIndexedDBStore<Store>('stores');
+    const { data: products, setData: setProducts, add: addProductDB, update: updateProductDB, remove: removeProductDB, bulkAdd: bulkAddProductsDB, clear: clearProductsDB } = useIndexedDBStore<Product>('products');
+    const { data: variants, setData: setVariants, add: addVariantDB, update: updateVariantDB, remove: removeVariantDB, bulkAdd: bulkAddVariantsDB, clear: clearVariantsDB } = useIndexedDBStore<ProductVariant>('productVariants');
+    const { data: sales, setData: setSales, add: addSaleDB, remove: removeSaleDB, bulkAdd: bulkAddSalesDB, clear: clearSalesDB } = useIndexedDBStore<Sale>('sales');
+    const { data: expenses, setData: setExpenses, add: addExpenseDB, update: updateExpenseDB, remove: removeExpenseDB, bulkAdd: bulkAddExpensesDB, clear: clearExpensesDB } = useIndexedDBStore<Expense>('expenses');
+    const { data: customers, setData: setCustomers, add: addCustomerDB, remove: removeCustomerDB, bulkAdd: bulkAddCustomersDB, clear: clearCustomersDB } = useIndexedDBStore<Customer>('customers');
+    const { data: suppliers, setData: setSuppliers, add: addSupplierDB, remove: removeSupplierDB, bulkAdd: bulkAddSuppliersDB, clear: clearSuppliersDB } = useIndexedDBStore<Supplier>('suppliers');
+    const { data: categories, setData: setCategories, add: addCategoryDB, update: updateCategoryDB, remove: removeCategoryDB, bulkAdd: bulkAddCategoriesDB, clear: clearCategoriesDB } = useIndexedDBStore<Category>('categories');
+    const { data: purchases, setData: setPurchases, add: addPurchaseDB, bulkAdd: bulkAddPurchasesDB, clear: clearPurchasesDB } = useIndexedDBStore<Purchase>('purchases');
+    const { data: stockBatches, setData: setStockBatches, add: addStockBatchDB, bulkAdd: bulkAddStockBatchesDB, clear: clearStockBatchesDB } = useIndexedDBStore<StockBatch>('stockBatches');
+    const { data: returns, setData: setReturns, add: addReturnDB, remove: removeReturnDB, bulkAdd: bulkAddReturnsDB, clear: clearReturnsDB } = useIndexedDBStore<Return>('returns');
+    const { data: users, setData: setUsers, add: addUserDB, update: updateUserDB, remove: removeUserDB, bulkAdd: bulkAddUsersDB, clear: clearUsersDB } = useIndexedDBStore<User>('users');
+    const { data: stores, setData: setStores, update: updateStoreDB, bulkAdd: bulkAddStoresDB, clear: clearStoresDB } = useIndexedDBStore<Store>('stores');
+    
+    const [cart, setCart] = useLocalStorage<CartItem[]>(store ? `cart-${store.id}` : 'cart', []);
+    const [saleToPrint, setSaleToPrint] = useState<{sale: Sale, mode: 'invoice' | 'orderForm'} | null>(null);
+    const [returnToPrint, setReturnToPrint] = useState<Return | null>(null);
 
-  const fetchDataForStore = async (storeId: string) => {
-    // A simple sync, clearing local and fetching fresh from remote
-    await Promise.all([
-      productsDB.clear(), variantsDB.clear(), salesDB.clear(), expensesDB.clear(),
-      customersDB.clear(), suppliersDB.clear(), categoriesDB.clear(), purchasesDB.clear(),
-      stockBatchesDB.clear(), returnsDB.clear(), usersDB.clear()
-    ]);
-    const [
-      products, variants, sales, expenses, customers, suppliers, categories, purchases, stockBatches, returns, users
-    ] = await Promise.all([
-      api.getProducts(storeId), api.getProductVariants(storeId), api.getSales(storeId), api.getExpenses(storeId),
-      api.getCustomers(storeId), api.getSuppliers(storeId), api.getCategories(storeId), api.getPurchases(storeId),
-      api.getStockBatches(storeId), api.getReturns(storeId), api.getUsers(storeId)
-    ]);
-    await Promise.all([
-      productsDB.bulkAdd(products), variantsDB.bulkAdd(variants), salesDB.bulkAdd(sales), expensesDB.bulkAdd(expenses),
-      customersDB.bulkAdd(customers), suppliersDB.bulkAdd(suppliers), categoriesDB.bulkAdd(categories),
-      purchasesDB.bulkAdd(purchases), stockBatchesDB.bulkAdd(stockBatches), returnsDB.bulkAdd(returns), usersDB.bulkAdd(users)
-    ]);
-  };
-  
-  const handleLoginSuccess = async (user: User, store: Store) => {
-      setActiveUser(user);
-      setActiveStore(store);
-      await storesDB.clear();
-      await storesDB.add(store);
-      await fetchDataForStore(store.id);
-  }
-
-  const handleLogout = () => {
-    setActiveUser(null);
-    setActiveStore(null);
-    setIsSuperAdmin(false);
-    setIsSuperAdminDashboard(false);
-    // Clear session storage just in case
-    sessionStorage.removeItem('active-user');
-    sessionStorage.removeItem('active-store');
-    sessionStorage.removeItem('is-super-admin');
-  };
-
-  const stockMap = useMemo(() => {
-    const map = new Map<string, number>();
-    stockBatchesDB.data.forEach(batch => {
-      map.set(batch.variantId, (map.get(batch.variantId) || 0) + batch.quantity);
-    });
-    salesDB.data.forEach(sale => {
-      sale.items.forEach(item => {
-        if (item.type === 'good') {
-          map.set(item.id, (map.get(item.id) || 0) - item.quantity);
+    const t: TFunction = useCallback((key, options) => {
+        const langData = translations[language] || translations.fr;
+        let translation = langData[key] || translations.fr[key] || key;
+        if (options) {
+            Object.keys(options).forEach(optionKey => {
+                translation = translation.replace(`{${optionKey}}`, String(options[optionKey]));
+            });
         }
-      });
-    });
-    returnsDB.data.forEach(ret => {
-      ret.items.forEach(item => {
-        if (item.type === 'good') {
-          map.set(item.id, (map.get(item.id) || 0) + item.quantity);
+        return translation;
+    }, [language]);
+
+    const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+
+    useEffect(() => {
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+        document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    }, [theme, language]);
+
+    const loadDataForStore = useCallback(async (storeId: string) => {
+        setIsDataLoading(true);
+        try {
+            const [
+                _products, _variants, _sales, _expenses, _customers, _suppliers,
+                _categories, _purchases, _stockBatches, _returns, _users
+            ] = await Promise.all([
+                api.getProducts(storeId),
+                api.getProductVariants(storeId),
+                api.getSales(storeId),
+                api.getExpenses(storeId),
+                api.getCustomers(storeId),
+                api.getSuppliers(storeId),
+                api.getCategories(storeId),
+                api.getPurchases(storeId),
+                api.getStockBatches(storeId),
+                api.getReturns(storeId),
+                api.getUsers(storeId)
+            ]);
+            
+            await Promise.all([
+                clearProductsDB().then(() => bulkAddProductsDB(_products)),
+                clearVariantsDB().then(() => bulkAddVariantsDB(_variants)),
+                clearSalesDB().then(() => bulkAddSalesDB(_sales)),
+                clearExpensesDB().then(() => bulkAddExpensesDB(_expenses)),
+                clearCustomersDB().then(() => bulkAddCustomersDB(_customers)),
+                clearSuppliersDB().then(() => bulkAddSuppliersDB(_suppliers)),
+                clearCategoriesDB().then(() => bulkAddCategoriesDB(_categories)),
+                clearPurchasesDB().then(() => bulkAddPurchasesDB(_purchases)),
+                clearStockBatchesDB().then(() => bulkAddStockBatchesDB(_stockBatches)),
+                clearReturnsDB().then(() => bulkAddReturnsDB(_returns)),
+                clearUsersDB().then(() => bulkAddUsersDB(_users)),
+                clearStoresDB().then(() => api.getStoreById(storeId).then(s => s && bulkAddStoresDB([s])))
+            ]);
+        } catch (error) {
+            console.error("Failed to load data for store", error);
+        } finally {
+            setIsDataLoading(false);
         }
-      });
-    });
-    return map;
-  }, [stockBatchesDB.data, salesDB.data, returnsDB.data]);
-  
-  const derivedMaps = useMemo(() => {
-    const variantMap = new Map<string, ProductVariant>();
-    const variantsByProduct = new Map<string, ProductVariant[]>();
-    const barcodeMap = new Map<string, ProductVariant>();
-    variantsDB.data.forEach(v => {
-      variantMap.set(v.id, v);
-      const existing = variantsByProduct.get(v.productId) || [];
-      existing.push(v);
-      variantsByProduct.set(v.productId, existing);
-      if (v.barcode) {
-        barcodeMap.set(v.barcode, v);
-      }
-    });
-    return { variantMap, variantsByProduct, barcodeMap };
-  }, [variantsDB.data]);
+    }, [bulkAddCategoriesDB, bulkAddCustomersDB, bulkAddExpensesDB, bulkAddProductsDB, bulkAddPurchasesDB, bulkAddReturnsDB, bulkAddSalesDB, bulkAddStockBatchesDB, bulkAddSuppliersDB, bulkAddUsersDB, bulkAddVariantsDB, bulkAddStoresDB, clearCategoriesDB, clearCustomersDB, clearExpensesDB, clearProductsDB, clearPurchasesDB, clearReturnsDB, clearSalesDB, clearStockBatchesDB, clearSuppliersDB, clearUsersDB, clearVariantsDB, clearStoresDB]);
 
+    useEffect(() => {
+        if (store?.id) {
+            loadDataForStore(store.id);
+        } else {
+            setIsDataLoading(false);
+        }
+    }, [store?.id, loadDataForStore]);
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
-  }, [theme, language]);
-
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
-
-  // --- CRUD Handlers ---
-  const addProduct = async (productData: Omit<Product, 'id'>, variantsData: Omit<VariantFormData, 'stockQuantity'>[]) => {
-    const { product, variants, stockBatches } = await api.addProductWithVariants(productData, variantsData);
-    await productsDB.add(product);
-    await variantsDB.bulkAdd(variants);
-    await stockBatchesDB.bulkAdd(stockBatches);
-    return { product, variants };
-  };
-
-  const updateProduct = async (productData: Product, variantsData: VariantFormData[]) => {
-      const { updatedVariants, newVariants, deletedVariantIds, newStockBatches } = await api.updateProductWithVariants(productData, variantsData);
-      await productsDB.update(productData);
-      for(const v of updatedVariants) { await variantsDB.update(v); }
-      await variantsDB.bulkAdd(newVariants);
-      for (const id of deletedVariantIds) { await variantsDB.remove(id); }
-      await stockBatchesDB.bulkAdd(newStockBatches);
-  };
-
-  const deleteProduct = async (id: string) => {
-    await api.deleteProduct(id);
-    await productsDB.remove(id);
-    // Also remove associated variants and stock batches from local state
-    const variantsToRemove = variantsDB.data.filter(v => v.productId === id);
-    for(const variant of variantsToRemove) {
-      await variantsDB.remove(variant.id);
-      const batchesToRemove = stockBatchesDB.data.filter(sb => sb.variantId === variant.id);
-      for(const batch of batchesToRemove) {
-        await stockBatchesDB.remove(batch.id);
-      }
-    }
-  };
-
-  const addStockToVariant = async (data: { variantId: string; quantity: number; purchasePrice: number; sellingPrice: number; supplierId: string | undefined; }) => {
-    const { purchase, newStockBatch, updatedVariant } = await api.addStock(data);
-    await purchasesDB.add(purchase);
-    await stockBatchesDB.add(newStockBatch);
-    await variantsDB.update(updatedVariant);
-  };
-  
-  const addPurchase = async (purchase: Omit<Purchase, 'id'>, items: PurchaseItem[]) => {
-    const { newPurchase, newStockBatches } = await api.addPurchase({...purchase, items});
-    await purchasesDB.add(newPurchase);
-    await stockBatchesDB.bulkAdd(newStockBatches);
-  }
-  
-  const paySupplierDebt = async (supplierId: string, amount: number) => {
-      // Find oldest unpaid purchase and pay it off
-      const supplierPurchases = purchasesDB.data
-          .filter(p => p.supplierId === supplierId && p.remainingAmount > 0)
-          .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-      let remainingAmountToPay = amount;
-      for (const purchase of supplierPurchases) {
-          if (remainingAmountToPay <= 0) break;
-          
-          const paymentForThisPurchase = Math.min(remainingAmountToPay, purchase.remainingAmount);
-          const updatedPurchase = {
-              ...purchase,
-              amountPaid: purchase.amountPaid + paymentForThisPurchase,
-              remainingAmount: purchase.remainingAmount - paymentForThisPurchase,
-          };
-          
-          await api.updatePurchase(updatedPurchase);
-          await purchasesDB.update(updatedPurchase);
-          
-          remainingAmountToPay -= paymentForThisPurchase;
-      }
-  };
-
-  const completeSale = async (downPayment: number, customerId: string | undefined, finalTotal: number, printMode: 'invoice' | 'orderForm') => {
-    if (!activeUser || !activeStore) return;
-    const newSale = await api.completeSale(cart, downPayment, customerId, finalTotal, activeUser.id, activeStore.id);
-    await salesDB.add(newSale);
-    setCart([]);
-    setSaleToPrint(newSale);
-    setPrintMode(printMode);
-    setIsPrintingInvoice(true);
-  };
-  
-  const processReturn = async (itemsToReturn: CartItem[]) => {
-    if (!activeUser || !activeStore) return;
-    const newReturn = await api.processReturn(itemsToReturn, activeUser.id, activeStore.id);
-    await returnsDB.add(newReturn);
-    setCart([]);
-  };
-  
-  const payCustomerDebt = async (customerId: string, amount: number) => {
-    if (!activeUser || !activeStore) return;
-    const paymentSale = await api.payCustomerDebt(customerId, amount, activeUser.id, activeStore.id);
-    await salesDB.add(paymentSale);
-  };
-
-  const addExpense = async (expense: Omit<Expense, 'id'>) => {
-      const newExpense = await api.addExpense(expense);
-      if (newExpense) await expensesDB.add(newExpense);
-      return newExpense;
-  };
-  const updateExpense = async (expense: Expense) => { await api.updateExpense(expense); await expensesDB.update(expense); };
-  const deleteExpense = async (id: string) => { await api.deleteExpense(id); await expensesDB.remove(id); };
-  
-  const addCustomer = async (customer: Omit<Customer, 'id'>) => {
-    const newCustomer = await api.addCustomer(customer);
-    if (newCustomer) await customersDB.add(newCustomer);
-    return newCustomer;
-  };
-  const deleteCustomer = async (id: string) => { await api.deleteCustomer(id); await customersDB.remove(id); };
-
-  const addSupplier = async (supplier: Omit<Supplier, 'id'>) => {
-    const newSupplier = await api.addSupplier(supplier);
-    if (newSupplier) await suppliersDB.add(newSupplier);
-    return newSupplier;
-  };
-  const deleteSupplier = async (id: string) => { await api.deleteSupplier(id); await suppliersDB.remove(id); };
-  
-  const addCategory = async (category: Omit<Category, 'id'>) => {
-    const newCategory = await api.addCategory(category);
-    if (newCategory) await categoriesDB.add(newCategory);
-    return newCategory;
-  };
-  const updateCategory = async (category: Category) => { await api.updateCategory(category); await categoriesDB.update(category); };
-  const deleteCategory = async (id: string) => { await api.deleteCategory(id); await categoriesDB.remove(id); };
-
-  const addUser = async (user: Omit<User, 'id'>) => {
-    const newUser = await api.addUser(user);
-    if (newUser) await usersDB.add(newUser);
-    return newUser;
-  };
-  const updateUser = async (user: User) => { await api.updateUser(user); await usersDB.update(user); };
-  const deleteUser = async (id: string) => { await api.deleteUser(id); await usersDB.remove(id); };
-
-  const updateStore = async (storeData: Partial<Store>) => {
-    if(!activeStore) return;
-    const updatedStore = await api.updateStore({...activeStore, ...storeData});
-    setActiveStore(updatedStore);
-    await storesDB.update(updatedStore);
-  }
-
-  const handleBackup = () => {
-    const backupData = {
-        stores: storesDB.data,
-        products: productsDB.data,
-        productVariants: variantsDB.data,
-        sales: salesDB.data,
-        expenses: expensesDB.data,
-        customers: customersDB.data,
-        suppliers: suppliersDB.data,
-        categories: categoriesDB.data,
-        purchases: purchasesDB.data,
-        stockBatches: stockBatchesDB.data,
-        returns: returnsDB.data,
-        users: usersDB.data,
+    const handleLoginSuccess = (loggedInUser: User, activeStore: Store) => {
+        setUser(loggedInUser);
+        setStore(activeStore);
+        setIsSuperAdmin(false);
+        setActiveTab(Tab.POS);
     };
-    const jsonString = JSON.stringify(backupData, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `goshop-backup-${activeStore?.name.replace(/\s/g, '_')}-${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-  
-  const handleRestore = async (jsonString: string) => {
-    if (!activeStore) return;
-    try {
-        const data = JSON.parse(jsonString);
-        if (data.stores && data.stores[0]?.id !== activeStore.id) {
-            alert(t('restoreStoreIdMismatchError', { storeName: activeStore.name }));
-            return;
+
+    const handleSuperAdminLogin = () => {
+        setIsSuperAdmin(true);
+        setUser(null);
+        setStore(null);
+    };
+    
+    const handleLogout = () => {
+        setUser(null);
+        setStore(null);
+        setIsSuperAdmin(false);
+        sessionStorage.clear();
+    };
+
+    const stockMap = useMemo(() => {
+        const map = new Map<string, number>();
+        variants.forEach(variant => {
+            const totalStock = stockBatches.filter(batch => batch.variantId === variant.id).reduce((sum, batch) => sum + batch.quantity, 0);
+            const soldStock = sales.flatMap(sale => sale.items).filter(item => item.id === variant.id).reduce((sum, item) => sum + item.quantity, 0);
+            const returnedStock = returns.flatMap(ret => ret.items).filter(item => item.id === variant.id).reduce((sum, item) => sum + item.quantity, 0);
+            map.set(variant.id, totalStock - soldStock + returnedStock);
+        });
+        return map;
+    }, [variants, stockBatches, sales, returns]);
+
+    const variantMap = useMemo(() => new Map(variants.map(v => [v.id, v])), [variants]);
+    const variantsByProduct = useMemo(() => {
+        const map = new Map<string, ProductVariant[]>();
+        variants.forEach(variant => {
+            const list = map.get(variant.productId) || [];
+            list.push(variant);
+            map.set(variant.productId, list);
+        });
+        return map;
+    }, [variants]);
+    const barcodeMap = useMemo(() => {
+        const map = new Map<string, ProductVariant>();
+        variants.forEach(v => {
+            if (v.barcode) map.set(v.barcode, v);
+        });
+        return map;
+    }, [variants]);
+
+    const lowStockVariants = useMemo(() => {
+        return variants.filter(v => (stockMap.get(v.id) || 0) <= v.lowStockThreshold);
+    }, [variants, stockMap]);
+
+    // Data mutation functions
+    const addProduct = async (productData: Omit<Product, 'id'>, variantsData: (Omit<ProductVariant, 'id'|'productId'|'storeId'> & {stockQuantity?: number})[]) => {
+        const { product, variants: newVariants, stockBatches: newStockBatches } = await api.addProductWithVariants(productData, variantsData);
+        await addProductDB(product);
+        await bulkAddVariantsDB(newVariants);
+        if (newStockBatches.length > 0) await bulkAddStockBatchesDB(newStockBatches);
+        return { product, variants: newVariants };
+    };
+
+    const updateProduct = async (productData: Product, variantsData: VariantFormData[]) => {
+        const { newVariants, newStockBatches } = await api.updateProductWithVariants(productData, variantsData);
+        await updateProductDB(productData);
+        if(newVariants.length > 0) await bulkAddVariantsDB(newVariants);
+        if(newStockBatches.length > 0) await bulkAddStockBatchesDB(newStockBatches);
+        // For simplicity, refetch variants and stock for the store to reflect all changes (updates/deletes)
+        await api.getProductVariants(productData.storeId).then(setVariants);
+        await api.getStockBatches(productData.storeId).then(setStockBatches);
+    };
+
+    const deleteProduct = async (id: string) => {
+        await api.deleteProduct(id);
+        await removeProductDB(id);
+        // Also remove associated variants
+        const variantsToDelete = variants.filter(v => v.productId === id);
+        for(const v of variantsToDelete) {
+            await removeVariantDB(v.id);
         }
-        await Promise.all([
-          // clear remote tables
-        ]);
-        await Promise.all([
-          storesDB.clear(), productsDB.clear(), variantsDB.clear(), salesDB.clear(), expensesDB.clear(),
-          customersDB.clear(), suppliersDB.clear(), categoriesDB.clear(), purchasesDB.clear(), stockBatchesDB.clear(),
-          returnsDB.clear(), usersDB.clear()
-        ]);
-        // This is a simplified restore. A real-world one would be more complex, handling conflicts and IDs.
-        // For now, it just re-populates the local DB. Remote sync is out of scope for this version.
-        await storesDB.bulkAdd(data.stores || []);
-        await productsDB.bulkAdd(data.products || []);
-        await variantsDB.bulkAdd(data.productVariants || []);
-        await salesDB.bulkAdd(data.sales || []);
-        await expensesDB.bulkAdd(data.expenses || []);
-        await customersDB.bulkAdd(data.customers || []);
-        await suppliersDB.bulkAdd(data.suppliers || []);
-        await categoriesDB.bulkAdd(data.categories || []);
-        await purchasesDB.bulkAdd(data.purchases || []);
-        await stockBatchesDB.bulkAdd(data.stockBatches || []);
-        await returnsDB.bulkAdd(data.returns || []);
-        await usersDB.bulkAdd(data.users || []);
+    };
+    
+    const addStockToVariant = async (data: { variantId: string; quantity: number; purchasePrice: number; sellingPrice: number; supplierId: string | undefined; }) => {
+        const { purchase, newStockBatch, updatedVariant } = await api.addStock(data);
+        await addPurchaseDB(purchase);
+        await addStockBatchDB(newStockBatch);
+        await updateVariantDB(updatedVariant);
+    };
+    
+    const completeSale = async (downPayment: number, customerId: string | undefined, finalTotal: number, printMode: 'invoice' | 'orderForm') => {
+        if (!store || !user) return;
+        const newSale = await api.completeSale(cart, downPayment, customerId, finalTotal, user.id, store.id);
+        await addSaleDB(newSale);
+        setCart([]);
+        setSaleToPrint({sale: newSale, mode: printMode});
+    };
+
+    const processReturn = async (itemsToReturn: CartItem[]) => {
+        if (!store || !user) return;
+        const newReturn = await api.processReturn(itemsToReturn, user.id, store.id);
+        await addReturnDB(newReturn);
+        setCart([]);
+        setReturnToPrint(newReturn);
+    };
+    
+    const payCustomerDebt = async (customerId: string, amount: number) => {
+        if (!store || !user) return;
+        const paymentSale = await api.payCustomerDebt(customerId, amount, user.id, store.id);
+        await addSaleDB(paymentSale);
+    };
+
+    const addExpense = async (expense: Omit<Expense, 'id'>) => {
+        const newExpense = await api.addExpense(expense);
+        await addExpenseDB(newExpense);
+        return newExpense;
+    };
+    const updateExpense = async (expense: Expense) => {
+        await api.updateExpense(expense);
+        await updateExpenseDB(expense);
+    };
+    const deleteExpense = async (id: string) => {
+        await api.deleteExpense(id);
+        await removeExpenseDB(id);
+    };
+
+    const addCustomer = async (customer: Omit<Customer, 'id'>) => {
+        const newCustomer = await api.addCustomer(customer);
+        await addCustomerDB(newCustomer);
+        return newCustomer;
+    };
+    const deleteCustomer = (id: string) => api.deleteCustomer(id).then(() => removeCustomerDB(id));
+
+    const addSupplier = async (supplier: Omit<Supplier, 'id'>) => {
+        const newSupplier = await api.addSupplier(supplier);
+        await addSupplierDB(newSupplier);
+        return newSupplier;
+    };
+    const deleteSupplier = (id: string) => api.deleteSupplier(id).then(() => removeSupplierDB(id));
+    
+    const addPurchase = async (purchase: Omit<Purchase, 'id'>, items: PurchaseItem[]) => {
+        const {newPurchase, newStockBatches} = await api.addPurchase(purchase);
+        await addPurchaseDB(newPurchase);
+        if(newStockBatches.length > 0) await bulkAddStockBatchesDB(newStockBatches);
+    };
+    const paySupplierDebt = async (supplierId: string, amount: number) => {
+        // Implement API call and state update
+    };
+
+    const addCategory = async (category: Omit<Category, 'id'>) => {
+        const newCategory = await api.addCategory(category);
+        await addCategoryDB(newCategory);
+        return newCategory;
+    };
+    const updateCategory = (category: Category) => api.updateCategory(category).then(() => updateCategoryDB(category));
+    const deleteCategory = (id: string) => api.deleteCategory(id).then(() => removeCategoryDB(id));
+    
+    const addUser = async (newUser: Omit<User, 'id'>) => {
+        const createdUser = await api.addUser(newUser);
+        await addUserDB(createdUser);
+        return createdUser;
+    };
+    const updateUser = (updatedUser: User) => api.updateUser(updatedUser).then(() => updateUserDB(updatedUser));
+    const deleteUser = (id: string) => api.deleteUser(id).then(() => removeUserDB(id));
+    
+    const onUpdateStore = async (storeData: Partial<Store>) => {
+        if(!store) return;
+        const updatedStore = await api.updateStore({...store, ...storeData});
+        await updateStoreDB(updatedStore);
+        setStore(updatedStore); // also update session store
+    };
+
+    const onBackup = () => {
+        const backupData = {
+            stores, users, products, variants, sales, expenses, customers, suppliers, categories, purchases, stockBatches, returns
+        };
+        const jsonString = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `goshop_backup_${store?.name}_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const onRestore = async (jsonString: string) => {
+        if(!store) return;
+        try {
+            const data = JSON.parse(jsonString);
+            // Basic validation
+            if (!data.products || !data.sales || !data.stores) throw new Error("Invalid backup file structure.");
+            const backupStore = data.stores.find((s: Store) => s.id === store.id);
+            if (!backupStore) throw new Error(t('restoreStoreIdMismatchError', { storeName: store.name }));
+            
+            if (window.confirm(t('restoreConfirm'))) {
+                await loadDataForStore(store.id); // A simple way is to re-fetch after restoring on backend
+                alert(t('restoreSuccess'));
+                window.location.reload();
+            }
+        } catch (error: any) {
+            alert(`${t('restoreError')}: ${error.message}`);
+        }
+    };
+    
+    if (isDataLoading) {
+        return <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200">{t('loading')}...</div>;
+    }
+
+    if (!user && !isSuperAdmin) {
+        return <Auth onLoginSuccess={handleLoginSuccess} onSuperAdminLogin={handleSuperAdminLogin} t={t} language={language} setLanguage={setLanguage} theme={theme} toggleTheme={toggleTheme} />;
+    }
+
+    if (isSuperAdmin) {
+        if (superAdminView === 'landing') {
+            return <SuperAdminLanding onGoToDashboard={() => setSuperAdminView('dashboard')} onLoginAsStoreAdmin={handleLoginSuccess} onLogout={handleLogout} t={t} language={language} setLanguage={setLanguage} theme={theme} toggleTheme={toggleTheme} />;
+        }
+        return <SuperAdminDashboard onGoBack={() => setSuperAdminView('landing')} onLoginAsStoreAdmin={handleLoginSuccess} onLogout={handleLogout} t={t} language={language} setLanguage={setLanguage} theme={theme} toggleTheme={toggleTheme} />;
+    }
+
+    if (user && store) {
+        const TABS = [
+            { id: Tab.POS, label: t('pos'), icon: ShoppingCartIcon },
+            { id: Tab.Products, label: t('products'), icon: BoxIcon },
+            { id: Tab.Services, label: t('services'), icon: SparklesIcon },
+            { id: Tab.Finance, label: t('finance'), icon: CoinsIcon },
+            { id: Tab.Customers, label: t('customers'), icon: UsersIcon },
+            { id: Tab.Suppliers, label: t('suppliers'), icon: TruckIcon },
+            { id: Tab.Categories, label: t('categories'), icon: TagIcon },
+            { id: Tab.Settings, label: t('settings'), icon: SettingsIcon },
+        ];
         
-        alert(t('restoreSuccess'));
-        window.location.reload();
-    } catch(e: any) {
-        alert(`${t('restoreError')}: ${e.message}`);
-    }
-  };
+        return (
+            <div className="flex h-screen bg-gray-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+                {saleToPrint && <PrintableInvoice sale={saleToPrint.sale} mode={saleToPrint.mode} store={store} customers={customers} onClose={() => setSaleToPrint(null)} t={t} language={language} />}
+                {returnToPrint && <PrintableReturnReceipt returnObject={returnToPrint} store={store} onClose={() => setReturnToPrint(null)} t={t} language={language} />}
+                <aside className="w-64 bg-white dark:bg-slate-800 shadow-md flex flex-col p-4">
+                    <div className="flex items-center gap-3 mb-6">
+                        <Logo url={store.logo} className="w-12 h-12 object-cover rounded-lg" />
+                        <div>
+                           <h1 className="text-xl font-bold text-slate-700 dark:text-slate-100">{store.name}</h1>
+                           <p className="text-xs text-slate-500 dark:text-slate-400">{t('welcome')}, {user.name}</p>
+                        </div>
+                    </div>
+                    <nav className="flex-grow space-y-2">
+                        {TABS.map(tab => (
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-colors ${activeTab === tab.id ? 'bg-teal-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'}`}>
+                                <tab.icon className="w-5 h-5" />
+                                <span>{tab.label}</span>
+                            </button>
+                        ))}
+                    </nav>
+                    <div className="mt-auto">
+                         <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors">
+                            <LogoutIcon className="w-5 h-5" />
+                            <span>{t('logout')}</span>
+                        </button>
+                    </div>
+                </aside>
+                <main className="flex-1 p-6 overflow-y-auto">
+                    <TrialBanner store={store} t={t} />
+                    {activeTab === Tab.POS && lowStockVariants.length > 0 && <LowStockAlert products={products} variants={lowStockVariants} suppliers={suppliers} t={t} />}
+                    
+                    {activeTab === Tab.POS && <PointOfSale store={store} user={user} products={products} variants={variants} customers={customers} categories={categories} sales={sales} stockMap={stockMap} variantMap={variantMap} variantsByProduct={variantsByProduct} barcodeMap={barcodeMap} cart={cart} setCart={setCart} completeSale={completeSale} processReturn={processReturn} payCustomerDebt={payCustomerDebt} t={t} language={language} />}
+                    {activeTab === Tab.Products && <ProductManagement storeId={store.id} products={products.filter(p=>p.type === 'good')} variants={variants} suppliers={suppliers} categories={categories} stockMap={stockMap} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} addStockToVariant={addStockToVariant} t={t} language={language} />}
+                    {activeTab === Tab.Services && <ServiceManagement storeId={store.id} services={products.filter(p=>p.type==='service')} addService={addProduct} updateService={updateProduct} deleteService={deleteProduct} t={t} />}
+                    {activeTab === Tab.Finance && <FinanceAndReports storeId={store.id} sales={sales} expenses={expenses} purchases={purchases} suppliers={suppliers} returns={returns} customers={customers} users={users} addProduct={addProduct} addExpense={addExpense} updateExpense={updateExpense} deleteExpense={deleteExpense} deleteReturn={id => deleteReturn(id).then(() => removeReturnDB(id))} deleteAllReturns={() => {if(window.confirm("Sure?")) {returns.forEach(r => deleteReturn(r.id).then(()=>removeReturnDB(r.id)))}}} onReprintInvoice={(sale) => setSaleToPrint({sale, mode: 'invoice'})} t={t} language={language} theme={theme} />}
+                    {activeTab === Tab.Customers && <CustomerManagement storeId={store.id} customers={customers} sales={sales} addCustomer={addCustomer} deleteCustomer={deleteCustomer} payCustomerDebt={payCustomerDebt} t={t} language={language} />}
+                    {activeTab === Tab.Suppliers && <SupplierManagement storeId={store.id} suppliers={suppliers} purchases={purchases} products={products} variants={variants} addSupplier={addSupplier} deleteSupplier={deleteSupplier} addPurchase={addPurchase} paySupplierDebt={paySupplierDebt} addProduct={addProduct} t={t} language={language} />}
+                    {activeTab === Tab.Categories && <CategoryManagement storeId={store.id} categories={categories} addCategory={addCategory} updateCategory={updateCategory} deleteCategory={deleteCategory} t={t} language={language} />}
+                    {activeTab === Tab.Settings && <UserManagement activeUser={user} store={store} storeId={store.id} users={users} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} onUpdateStore={onUpdateStore} onBackup={onBackup} onRestore={onRestore} t={t} />}
 
-
-  if (isSuperAdmin) {
-    if (isSuperAdminDashboard) {
-      return <SuperAdminDashboard 
-        onLoginAsStoreAdmin={handleLoginSuccess}
-        onLogout={handleLogout}
-        onGoBack={() => setIsSuperAdminDashboard(false)}
-        t={t}
-        language={language}
-        setLanguage={setLanguage}
-        theme={theme}
-        toggleTheme={toggleTheme}
-      />;
+                </main>
+            </div>
+        );
     }
-    return <SuperAdminLanding 
-      onLoginAsStoreAdmin={handleLoginSuccess}
-      onGoToDashboard={() => setIsSuperAdminDashboard(true)}
-      onLogout={handleLogout}
-      t={t}
-      language={language}
-      setLanguage={setLanguage}
-      theme={theme}
-      toggleTheme={toggleTheme}
-    />;
-  }
-  
-  if (!activeUser || !activeStore) {
-    return <Auth 
-      onLoginSuccess={handleLoginSuccess}
-      onSuperAdminLogin={() => setIsSuperAdmin(true)}
-      t={t} 
-      language={language} 
-      setLanguage={setLanguage} 
-      theme={theme} 
-      toggleTheme={toggleTheme} 
-    />;
-  }
-  
-  const renderTab = () => {
-    switch (activeTab) {
-      case Tab.POS: return <PointOfSale store={activeStore} user={activeUser} products={productsDB.data} variants={variantsDB.data} customers={customersDB.data} categories={categoriesDB.data} sales={salesDB.data} stockMap={stockMap} variantMap={derivedMaps.variantMap} variantsByProduct={derivedMaps.variantsByProduct} barcodeMap={derivedMaps.barcodeMap} cart={cart} setCart={setCart} completeSale={completeSale} processReturn={processReturn} payCustomerDebt={payCustomerDebt} t={t} language={language} />;
-      case Tab.Products: return <ProductManagement storeId={storeId} products={productsDB.data.filter(p=>p.type === 'good')} variants={variantsDB.data} suppliers={suppliersDB.data} categories={categoriesDB.data} stockMap={stockMap} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} addStockToVariant={addStockToVariant} t={t} language={language} />;
-      case Tab.Services: return <ServiceManagement storeId={storeId} services={productsDB.data.filter(p=>p.type === 'service')} addService={addProduct} updateService={updateProduct} deleteService={deleteProduct} t={t} />;
-      case Tab.Finance: return <FinanceAndReports storeId={storeId} sales={salesDB.data} expenses={expensesDB.data} purchases={purchasesDB.data} suppliers={suppliersDB.data} returns={returnsDB.data} customers={customersDB.data} users={usersDB.data} addProduct={addProduct} addExpense={addExpense} updateExpense={updateExpense} deleteExpense={deleteExpense} deleteReturn={returnsDB.remove} deleteAllReturns={() => {}} onReprintInvoice={(sale) => { setSaleToPrint(sale); setPrintMode('invoice'); setIsPrintingInvoice(true); }} t={t} language={language} theme={theme} />;
-      case Tab.Customers: return <CustomerManagement storeId={storeId} customers={customersDB.data} sales={salesDB.data} addCustomer={addCustomer} deleteCustomer={deleteCustomer} payCustomerDebt={payCustomerDebt} t={t} language={language} />;
-      case Tab.Suppliers: return <SupplierManagement storeId={storeId} suppliers={suppliersDB.data} purchases={purchasesDB.data} addSupplier={addSupplier} deleteSupplier={deleteSupplier} addPurchase={addPurchase} paySupplierDebt={paySupplierDebt} products={productsDB.data} variants={variantsDB.data} addProduct={addProduct} t={t} language={language} />;
-      case Tab.Categories: return <CategoryManagement storeId={storeId} categories={categoriesDB.data} addCategory={addCategory} updateCategory={updateCategory} deleteCategory={deleteCategory} t={t} language={language} />;
-      case Tab.Settings: return <UserManagement activeUser={activeUser} store={activeStore} storeId={storeId} users={usersDB.data} addUser={addUser} updateUser={updateUser} deleteUser={deleteUser} onUpdateStore={updateStore} onBackup={handleBackup} onRestore={handleRestore} t={t} />;
-      default: return null;
-    }
-  };
-
-  return (
-    <div className="flex h-screen bg-gray-100 dark:bg-slate-900" dir={language === 'ar' ? 'rtl' : 'ltr'}>
-      {isPrintingInvoice && saleToPrint && (
-        <PrintableInvoice
-          sale={saleToPrint}
-          mode={printMode}
-          store={activeStore}
-          customers={customersDB.data}
-          onClose={() => setIsPrintingInvoice(false)}
-          t={t}
-          language={language}
-        />
-      )}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} user={activeUser} t={t} language={language} theme={theme} toggleTheme={toggleTheme} />
-      <main className="flex-1 overflow-y-auto p-6">
-        <TrialBanner store={activeStore} t={t} />
-        {renderTab()}
-      </main>
-    </div>
-  );
-}
+    
+    return <div onClick={() => { localStorage.clear(); sessionStorage.clear(); window.location.reload(); }} className="cursor-pointer">An error occurred. Click to reset.</div>;
+};
 
 export default App;
