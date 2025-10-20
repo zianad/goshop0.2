@@ -1,4 +1,5 @@
 
+
 import { supabase } from './supabaseClient';
 // FIX: Add 'PurchaseItem' to the type import to resolve a missing type error.
 import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, CartItem, Return, StockBatch, VariantFormData, PurchaseItem } from './types';
@@ -405,6 +406,9 @@ export const processReturn = async (itemsToReturn: CartItem[], userId: string, s
     };
     return addSingle<Return>('returns', newReturn);
 };
+
+// FIX: Add missing deleteReturn function
+export const deleteReturn = (id: string): Promise<void> => deleteSingle('returns', id);
 
 // FIX: Added missing payCustomerDebt function
 export const payCustomerDebt = async (customerId: string, amount: number, userId: string, storeId: string): Promise<Sale> => {
