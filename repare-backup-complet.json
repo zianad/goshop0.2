@@ -1,0 +1,598 @@
+{
+  "stores": [
+    {
+      "id": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "carrè fer",
+      "address": "Hay massira 03 av khalifa ben ismail N040 casablanca",
+      "ice": "002424279000067",
+      "isActive": true,
+      "licenseKey": "LUNA-E4F9E215",
+      "licenseProof": "TFVOQS1FNEY5RTIxNTo6LTIxNDIyNzc5Mjk=",
+      "trialStartDate": null,
+      "trialDurationDays": 7
+    }
+  ],
+  "users": [
+    {
+      "id": "aa3c2235-17c3-482c-8db9-2f68aec0e7f4",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "Admin",
+      "email": "",
+      "password": "carrefer1955",
+      "role": "admin"
+    },
+    {
+      "name": "nouhaila",
+      "pin": "1111",
+      "role": "seller",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "d03b46e5-07c0-42e9-932f-8e2374a02c25"
+    }
+  ],
+  "products": [
+    {
+      "name": "FAUX CADRE - GALVA",
+      "type": "good",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "createdAt": "2024-08-09T12:44:51.748Z",
+      "supplierId": "69548e60-088b-43c8-93f0-48107d00f5fc",
+      "categoryId": "72bc2246-acb0-4065-8c94-5981ea27e395",
+      "id": "7e141129-e1e3-48b3-8a27-118fea3a773e",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "TUBE ROND ",
+      "type": "good",
+      "categoryId": "932def1c-90cd-4671-b317-046292e57885",
+      "createdAt": "2024-08-09T13:08:15.404Z",
+      "id": "281d8309-df60-43af-baa5-2868dafd2586",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "rectangulaire ",
+      "type": "good",
+      "categoryId": "b39604f0-1387-4067-ba1a-f061544d156d",
+      "createdAt": "2024-08-09T18:14:57.548Z",
+      "id": "212b634a-86de-4ec3-93e2-ff4824668b29",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "TUBE CARRE ",
+      "type": "good",
+      "categoryId": "10424f9c-726d-4562-bdae-2a4060c38a25",
+      "createdAt": "2024-08-11T12:14:36.375Z",
+      "id": "867e3904-d9d6-4093-896f-5d43b88fdfd3",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "GALVA RECTANGLAIRE",
+      "type": "good",
+      "categoryId": "1c1c528a-3841-4400-a8e6-a458fbb82aaf",
+      "createdAt": "2024-08-11T16:21:56.999Z",
+      "id": "20e2d4bc-e267-49da-b3a8-bac021eccc9c",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "CARRE GALVA",
+      "type": "good",
+      "categoryId": "bc3ae8ba-79a5-4898-a57c-4240abb9f20d",
+      "createdAt": "2024-08-11T17:53:53.472Z",
+      "id": "d7e1a4b6-3c35-4a75-819a-6b4de53008df",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "GALVA COULIS",
+      "type": "good",
+      "categoryId": "5433bf64-eb4c-4dcb-8edd-27f1e2e54164",
+      "createdAt": "2024-08-12T11:03:58.013Z",
+      "id": "88dcd878-0e26-480a-9eb9-976be627203b",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "LAMA PLEINE EN 5M",
+      "type": "good",
+      "categoryId": "8f3fc54e-c460-4352-b0c8-e433aa92f26c",
+      "createdAt": "2024-08-12T11:35:24.429Z",
+      "id": "dc6dea0b-2e8c-42b0-a162-e192227b61ce",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "LAMA PLEINE 6M",
+      "type": "good",
+      "categoryId": "3f295476-a039-4c04-be3b-b497059f6c51",
+      "createdAt": "2024-08-12T11:37:39.709Z",
+      "id": "62ea3d94-8851-4fc8-a03a-e853ae887fc4",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "LAMA GALVA 6M",
+      "type": "good",
+      "categoryId": "d935d583-391f-4869-8100-5ede1dad34d3",
+      "createdAt": "2024-08-12T11:41:14.797Z",
+      "id": "34007ee6-8bed-421c-a301-3e4d90994492",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "UAC ",
+      "type": "good",
+      "categoryId": "542850a1-836b-47df-967d-3bb719c56542",
+      "createdAt": "2024-08-12T11:47:42.576Z",
+      "id": "d08688bf-847e-4cf5-89c3-1fd7c6d2f9d8",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "FER ROND ",
+      "type": "good",
+      "categoryId": "8b4bb930-6579-440e-b0b8-143fdca7ddbd",
+      "createdAt": "2024-08-12T12:14:59.778Z",
+      "id": "66e80955-b49b-434c-b148-c6aafc39668f",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "FER CARRE",
+      "type": "good",
+      "categoryId": "adf39f21-5dc2-4d97-b8c4-7fe659aef128",
+      "createdAt": "2024-08-12T12:28:36.657Z",
+      "id": "4f00d4c2-5ba5-4cae-a8b8-ff5fc0adf7cd",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "FER H IPE",
+      "type": "good",
+      "categoryId": "49974456-be71-4fe3-8ad5-1baa6b7b0151",
+      "createdAt": "2024-08-12T15:28:13.767Z",
+      "id": "866d7121-78f5-485d-9fd1-9dc0a954e900",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "CORIENRE",
+      "type": "good",
+      "categoryId": "79937a30-f2ed-49f2-916c-8d97d7c1e87f",
+      "createdAt": "2024-08-12T16:21:58.679Z",
+      "id": "ace85ef6-2c77-4c1c-9fa3-4cf333418a21",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "FER T",
+      "type": "good",
+      "categoryId": "5df7c786-c412-4d6d-b116-b56bfa5daa60",
+      "createdAt": "2024-08-12T16:42:43.807Z",
+      "id": "d928c071-f5e3-447d-aff2-87ed126fdf94",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "FER PLAT",
+      "type": "good",
+      "categoryId": "271b0247-ac50-441e-804a-b2741db1fdcd",
+      "createdAt": "2024-08-12T18:25:02.048Z",
+      "id": "853f8600-f9b1-4dd4-aa54-724a58c8f6da",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "COULIS NOIR ",
+      "type": "good",
+      "categoryId": "718d3cca-a914-484e-a041-6c7208b42a78",
+      "createdAt": "2024-08-13T09:29:27.726Z",
+      "id": "f4d03e9a-58c3-4dca-bb24-150d5553252a",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "SERRURE APPARENT ",
+      "type": "good",
+      "categoryId": "470cedfa-e1bd-410e-a4af-3e83b48c8b5d",
+      "createdAt": "2024-08-13T10:34:15.690Z",
+      "id": "a86ed96d-ccd7-474e-b469-a0cbcf4a5df9",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "SERRURE CADENAS ",
+      "type": "good",
+      "categoryId": "6be4eefd-636f-4c54-a13c-39639a5efb93",
+      "createdAt": "2024-08-13T10:37:01.225Z",
+      "id": "16193e2d-9b23-4c7c-8ef4-4f9c2b1a6ee8",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "SERRURE ENCASTREE",
+      "type": "good",
+      "categoryId": "0befa1b7-aaac-4242-b79a-c881df242010",
+      "createdAt": "2024-08-13T10:51:44.011Z",
+      "id": "c6eba60a-8cf9-457c-8317-4ecd24f5fe4a",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "CANON",
+      "type": "good",
+      "categoryId": "06a3304e-568c-4691-bda5-ad48ede3ac51",
+      "createdAt": "2024-08-13T10:54:48.217Z",
+      "id": "a5e53fe5-35a8-45a4-a78b-32478d143b00",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "METRE",
+      "type": "good",
+      "categoryId": "dd49f396-8697-409e-bbb0-613decaed203",
+      "createdAt": "2024-08-13T11:04:00.897Z",
+      "id": "67fabb42-d33d-4560-984b-28d2be82f55e",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "VERROU A RESSORT ",
+      "type": "good",
+      "categoryId": "5c0bfaac-de61-4595-87b2-342acc8de6b1",
+      "createdAt": "2024-08-13T11:32:19.153Z",
+      "id": "5619ccb2-ae65-4764-a375-aabec135b783",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "VERROU NORMAL ",
+      "type": "good",
+      "categoryId": "69cc2132-f27f-4598-8108-3b4e24ecf674",
+      "createdAt": "2024-08-13T11:42:14.840Z",
+      "id": "119639e8-1d9a-4276-ae47-c1d9f7c7d020",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "ROUE ORANGE",
+      "type": "good",
+      "categoryId": "997dbcf5-d32a-4483-8e26-5b89a34515e7",
+      "createdAt": "2024-08-13T12:14:44.136Z",
+      "id": "bdeeb67e-78e5-4efa-905a-7a8b753f0535",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "ROUE BLANCHE ",
+      "type": "good",
+      "categoryId": "09e49f79-edb1-4d4d-804c-41595955b940",
+      "createdAt": "2024-08-13T12:23:50.050Z",
+      "id": "c0225c0f-2c41-4c0e-8c7c-99051e064fe5",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "ROUE NYLON BLANCH",
+      "type": "good",
+      "categoryId": "bec60090-9b3d-4b59-aa35-3bf3d2d9879a",
+      "createdAt": "2024-08-13T12:32:46.210Z",
+      "id": "6c23bd90-1f5f-4a25-8b76-3504ae133322",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "ROUE NOIR ",
+      "type": "good",
+      "categoryId": "0932bb0d-0b7b-443a-950a-8e6d46db56de",
+      "createdAt": "2024-08-13T12:36:20.567Z",
+      "id": "645b8dc7-cbdb-4ac0-a6d5-45f80ebd687e",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "MOTIFS DECORATIFS ",
+      "type": "good",
+      "categoryId": "ad282c06-9270-412e-9ab7-b8e894f18da4",
+      "createdAt": "2024-08-13T15:17:13.327Z",
+      "id": "bab05351-86a4-4273-b15a-ffcd9a18218b",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "POIGNEE FER FORGE ",
+      "type": "good",
+      "categoryId": "efcb39fa-a9de-4105-a454-a79e53d21244",
+      "createdAt": "2024-08-14T09:05:52.566Z",
+      "id": "2fd22066-9e5d-47d9-a11a-790f14871b7a",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "Disque ",
+      "type": "good",
+      "categoryId": "fc4782d9-6f0e-4037-ae3d-a08e5a2f4479",
+      "createdAt": "2024-08-14T09:38:05.917Z",
+      "id": "3560e4f5-a907-4298-ab55-1638eefaf877",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "BAGUETTE A SOUDER",
+      "type": "good",
+      "categoryId": "881972fb-60a9-4903-bcaf-6ef816f9199b",
+      "createdAt": "2024-08-14T10:40:31.475Z",
+      "id": "5d9ac175-734e-4dbe-a67b-a13da9f7da6a",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": " PAUMELLES CHARNIERES",
+      "type": "good",
+      "categoryId": "61baf668-a984-4606-9951-e7b1c364bc1a",
+      "createdAt": "2024-08-14T11:27:14.788Z",
+      "id": "277c07fb-c3f7-4d63-8a59-43828eab6c94",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "PAUMELLES A SOUDER",
+      "type": "good",
+      "categoryId": "a5893759-3cb7-4563-9c62-6b3a2cadb478",
+      "createdAt": "2024-08-14T11:52:23.247Z",
+      "id": "f713c2a5-d4c6-4f45-9786-a03513a81ca2",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "ACCESSOIRES INOX",
+      "type": "good",
+      "categoryId": "b52daf61-73b2-4a8c-9d1a-c7364e3f37fc",
+      "createdAt": "2024-08-14T12:21:36.435Z",
+      "id": "8fbd7dde-cce8-4548-b519-2f7199a540d1",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "ACCESSOIRE RIDEAUX",
+      "type": "good",
+      "categoryId": "7e0347e0-21f3-4164-b709-bf01aeeca9af",
+      "createdAt": "2024-08-14T16:35:07.409Z",
+      "id": "736cb327-3800-4b9c-a19c-bd6617aa2f3d",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "TOLE GALVA",
+      "type": "good",
+      "categoryId": "9aec9fd6-1a6c-488b-9799-0dca53603e2b",
+      "createdAt": "2024-08-15T08:58:57.785Z",
+      "id": "f06ccf45-2c09-486a-9c9b-5b517080ea16",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "TOLE NOIR",
+      "type": "good",
+      "categoryId": "36efcff0-d09d-4b19-a6df-e23e2505beaa",
+      "createdAt": "2024-08-15T11:19:26.023Z",
+      "id": "7eca2d68-16ed-4817-96aa-f58bc0940c60",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "TOLE PER FORE",
+      "type": "good",
+      "categoryId": "6b0d2f19-da71-466d-98b1-e68c1a4d28ba",
+      "createdAt": "2024-08-15T11:22:41.471Z",
+      "id": "a581432e-0f7c-4149-8ea1-754800ee57d9",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "TOLE GENFLES",
+      "type": "good",
+      "categoryId": "ca222050-c242-48b2-9e84-8ab9adeebeb3",
+      "createdAt": "2024-08-15T11:26:29.991Z",
+      "id": "0175f79a-4492-4284-b867-652f04b3f22f",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "TOLE REDAL ",
+      "type": "good",
+      "categoryId": "d2b3f12b-6285-4d16-a15e-acbf3fdec4ff",
+      "createdAt": "2024-08-15T11:29:46.042Z",
+      "id": "6394898d-8c19-4430-8d4c-960e3347b539",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "TOLE INOX",
+      "type": "good",
+      "categoryId": "c672b1ed-8980-4fa7-a1bb-335df8882dda",
+      "createdAt": "2024-08-15T11:41:02.015Z",
+      "id": "07e98004-6125-4db1-b415-6c7328da6a8e",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "GALET A GORGE ROND",
+      "type": "good",
+      "categoryId": "264210f9-ebe4-4fcc-ad4f-a6cc379d2e95",
+      "createdAt": "2024-08-15T15:15:12.573Z",
+      "id": "a746bffe-4ad8-49ce-8a3e-77024a3046d9",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "RIVETS ",
+      "type": "good",
+      "categoryId": "40ac1776-ce4e-49f9-90b8-1b7102d8d9ad",
+      "createdAt": "2024-08-15T16:31:45.557Z",
+      "id": "dbe57486-45a9-4594-84c2-3a9ab4be9545",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "EMBOUT POUR TUBE",
+      "type": "good",
+      "categoryId": "180aeec5-5edd-4c80-bbfa-0a58c23b542c",
+      "createdAt": "2024-08-15T17:20:58.350Z",
+      "id": "26bd082d-a056-4d6e-adc9-8184000eee23",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "CHOVE METAL",
+      "type": "good",
+      "categoryId": "f6e40359-0bf5-47dd-9641-3e8e53dc0d74",
+      "createdAt": "2024-08-16T11:54:19.409Z",
+      "id": "9f360231-f6f7-4a84-9827-32ce11a2552a",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "VIS",
+      "type": "good",
+      "categoryId": "c54bea9b-389b-44da-b132-60aea420e9fd",
+      "createdAt": "2024-08-16T11:59:06.104Z",
+      "id": "6109859c-9091-4601-a56d-470917472597",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "MASQUE ECO ARC",
+      "type": "good",
+      "categoryId": "abea10c3-7d56-4f05-9b15-54e87e01befc",
+      "createdAt": "2024-08-16T13:55:46.162Z",
+      "id": "9a3a53e0-ad2d-4e11-982b-7719567ce6e6",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "CUIVRE ",
+      "type": "good",
+      "categoryId": "d3cd28c2-c0e7-4176-9b78-a4ec75a72bac",
+      "createdAt": "2024-08-16T16:12:43.387Z",
+      "id": "6bc73f98-0b99-48b8-bae5-c9fd9929504a",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "GRILLAGE GLVANISE ",
+      "type": "good",
+      "categoryId": "3c07288e-a6c3-416d-b610-9199bda6dc5d",
+      "createdAt": "2024-08-19T09:54:51.600Z",
+      "id": "ca730dbd-b769-4b5e-a81d-86eec984b26c",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "GRILLAGE NOIR",
+      "type": "good",
+      "categoryId": "667ee629-335f-4bc1-bf9c-e70da5423f3d",
+      "createdAt": "2024-08-19T10:03:15.376Z",
+      "id": "3e1205d0-3fc9-41d3-9b82-f45d98bc0391",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "BOITE CAP",
+      "type": "good",
+      "categoryId": "5d72f8dc-64d6-4623-95fe-fcc46affb33b",
+      "createdAt": "2024-08-19T10:26:55.879Z",
+      "id": "7cd220f1-3c0c-46b8-b227-7198aef4730f",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "EQUERRE ALUMINIUM",
+      "type": "good",
+      "categoryId": "05363e57-4b52-497c-b079-e3962bc2e60c",
+      "image": "https://via.placeholder.com/200/f3f4f6/6b7280?text=EQUERRE%20ALUMINIUM",
+      "createdAt": "2024-08-19T16:40:18.382Z",
+      "id": "0269f3c2-3edf-483f-9ed4-b6ea2557d46c"
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "RAKOL",
+      "type": "good",
+      "categoryId": "2473be22-83fc-4b59-be39-b563c91a33f2",
+      "image": "https://via.placeholder.com/200/f3f4f6/6b7280?text=RAKOL",
+      "createdAt": "2024-08-19T18:08:50.756Z",
+      "id": "4e7c6a65-ed86-4b8f-89fd-e977dffcdfe4"
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "TOLE NOIR ST",
+      "type": "good",
+      "categoryId": "ff39149f-1095-48d8-8b9d-42de32764e6b",
+      "createdAt": "2024-08-20T10:25:55.098Z",
+      "id": "03a61149-6d4f-4e0b-b355-c999bc67e4fb",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "COUDE A SOUDER ",
+      "type": "good",
+      "categoryId": "b402700d-fbcc-4dbe-8a7c-0898de6de144",
+      "createdAt": "2024-08-20T10:39:48.795Z",
+      "id": "38211653-0ad3-4b1e-b5aa-6d9feb3df4ad",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "TOLE LASER",
+      "type": "good",
+      "categoryId": "b5cf4971-37e3-4356-a042-3dd902580031",
+      "createdAt": "2024-08-22T10:56:58.733Z",
+      "id": "ae6174dc-f519-4eef-ae81-aeaf7f02dd8e",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "VIS AUTOPERCEUSE",
+      "type": "good",
+      "categoryId": "106de66d-e1f7-4e31-8108-250b4175c271",
+      "createdAt": "2024-08-23T15:18:20.338Z",
+      "id": "5042ebc6-efc7-42fe-a333-2c04fbc8d442",
+      "image": ""
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "LES MAIL",
+      "type": "good",
+      "categoryId": "e2a15944-a245-4e82-901e-43107a0bc85f",
+      "image": "https://via.placeholder.com/200/f3f4f6/6b7280?text=LES%20MAIL",
+      "createdAt": "2024-08-23T16:17:47.646Z",
+      "id": "0a15f7da-233a-41c7-ac2c-34387201aa80"
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "ECRO",
+      "type": "good",
+      "categoryId": "aab6d314-9631-4840-968a-53dd9dad1021",
+      "image": "https://via.placeholder.com/200/f3f4f6/6b7280?text=ECRO",
+      "createdAt": "2024-08-26T14:32:04.611Z",
+      "id": "c3b31dcd-19b9-439d-a59f-f175c468176e"
+    },
+    {
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "CRO",
+      "type": "good",
+      "categoryId": "f8f2d493-0c05-43a4-90b5-d9082ba9bacb",
+      "image": "https://via.placeholder.com/200/f3f4f6/6b7280?text=CRO",
+      "createdAt": "2024-08-28T16:21:06.462Z",
+      "id": "762564ff-bfbd-456b-9f67-34d70bc848c6"
+    }
+  ],
+  "sales": [],
+  "expenses": [],
+  "returns": [],
+  "purchases": [],
+  "stockBatches": []
+}

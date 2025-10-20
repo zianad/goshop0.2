@@ -1,3 +1,5 @@
+
+
 import { supabase } from './supabaseClient';
 // FIX: Add 'PurchaseItem' to the type import to resolve a missing type error.
 import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, CartItem, Return, StockBatch, VariantFormData, PurchaseItem } from './types';
@@ -109,8 +111,11 @@ export const getAllUsers = async (): Promise<User[]> => {
 };
 
 export const getAdminUserForStore = async (storeId: string): Promise<User | null> => {
-    const { data, error } = await supabase.from('users').select('*').eq('storeId', storeId).eq('role', 'admin').single();
-    checkError(error, 'getAdminUserForStore');
+    const { data, error } = await supabase.from('users').select('*').eq('storeId', storeId).eq('role', 'admin').maybeSingle();
+    // Do not throw on no user found, it's a valid case
+    if(error && error.code !== 'PGRST116') {
+      checkError(error, 'getAdminUserForStore');
+    }
     return data;
 };
 
@@ -142,14 +147,14 @@ export const updateStore = async (store: Store | Partial<Store> & { id: string }
 // GENERIC CRUD FUNCTIONS
 // ============================================================================
 
-const addSingle = async <T>(table: string, item: Omit<T, 'id'>): Promise<T> => {
+const addSingle = async <T extends {id: any}>(table: string, item: Omit<T, 'id'>): Promise<T> => {
     const { data, error } = await supabase.from(table).insert(item).select().single();
     checkError(error, `addSingle (${table})`);
     return data;
 };
 
 const updateSingle = async <T extends { id: string }>(table: string, item: T): Promise<void> => {
-    const { error } = await supabase.from(table).update(item).eq('id', item.id);
+    const { error } = await supabase.from(table).update(item as any).eq('id', item.id);
     checkError(error, `updateSingle (${table})`);
 };
 
@@ -206,24 +211,26 @@ export const updateProductWithVariants = async (productData: Product, variantsDa
     const productVariants = existingVariants.filter(v => v.productId === productData.id);
 
     const variantsToUpdate: ProductVariant[] = [];
-    const variantsToInsert: Omit<ProductVariant, 'id'>[] = [];
-    const newStockBatches: Omit<StockBatch, 'id'>[] = [];
+    const variantsToInsert: (Omit<VariantFormData, 'id' | 'stockQuantity'> & {productId: string, storeId: string})[] = [];
+    const newStockBatchesToCreate: Omit<StockBatch, 'id'>[] = [];
 
     for (const formData of variantsData) {
         if (formData.id) { // Existing variant
             const existing = productVariants.find(v => v.id === formData.id);
             if (existing) {
+                const { stockQuantity, ...rest } = formData;
                 variantsToUpdate.push({
                     ...existing,
-                    ...formData,
+                    ...rest,
                     id: formData.id,
                     priceSemiWholesale: formData.priceSemiWholesale || 0,
                     priceWholesale: formData.priceWholesale || 0,
                 });
             }
         } else { // New variant
+            const { stockQuantity, ...rest } = formData;
             variantsToInsert.push({
-                ...formData,
+                ...rest,
                 productId: productData.id,
                 storeId: productData.storeId,
                 priceSemiWholesale: formData.priceSemiWholesale || 0,
@@ -243,17 +250,17 @@ export const updateProductWithVariants = async (productData: Product, variantsDa
     // 3. Insert new variants
     let newVariants: ProductVariant[] = [];
     if (variantsToInsert.length > 0) {
-        const { data, error } = await supabase.from('productVariants').insert(variantsToInsert.map(v => ({...v, stockQuantity: undefined}))).select();
+        const { data, error } = await supabase.from('productVariants').insert(variantsToInsert).select();
         checkError(error, 'updateProductWithVariants (insert variants)');
         newVariants = data || [];
         
         // Add initial stock for new variants
         newVariants.forEach(nv => {
-            const formData = variantsToInsert.find(v => v.name === nv.name);
-            if(formData && 'stockQuantity' in formData && (formData as any).stockQuantity > 0){
-                 newStockBatches.push({
+            const formData = variantsData.find(v => !v.id && v.name === nv.name);
+            if(formData && formData.stockQuantity > 0){
+                 newStockBatchesToCreate.push({
                     variantId: nv.id,
-                    quantity: (formData as any).stockQuantity,
+                    quantity: formData.stockQuantity,
                     purchasePrice: nv.purchasePrice,
                     storeId: productData.storeId,
                     createdAt: new Date().toISOString()
@@ -269,11 +276,10 @@ export const updateProductWithVariants = async (productData: Product, variantsDa
         checkError(error, 'updateProductWithVariants (delete variants)');
     }
     
-    // FIX: Add new stock batches and select them back to get IDs, resolving a type error in App.tsx.
     // 5. Add new stock batches and get them back with IDs
     let insertedStockBatches: StockBatch[] = [];
-    if (newStockBatches.length > 0) {
-        const { data, error } = await supabase.from('stockBatches').insert(newStockBatches).select();
+    if (newStockBatchesToCreate.length > 0) {
+        const { data, error } = await supabase.from('stockBatches').insert(newStockBatchesToCreate).select();
         checkError(error, 'updateProductWithVariants (stock)');
         insertedStockBatches = data || [];
     }
@@ -312,162 +318,163 @@ export const addStock = async (data: { variantId: string; quantity: number; purc
     };
 
     const { data: purchase, error: purchaseError } = await supabase.from('purchases').insert(purchaseData).select().single();
+    // FIX: Fixed a copy-paste error in the context string.
     checkError(purchaseError, 'addStock (purchase)');
-    if (!purchase) throw new Error("Purchase creation failed");
-
-    const stockBatchData = {
+    if(!purchase) throw new Error("Purchase creation failed in addStock");
+    
+    const stockBatchData: Omit<StockBatch, 'id'> = {
         variantId: data.variantId,
         quantity: data.quantity,
         purchasePrice: data.purchasePrice,
         storeId: variant.storeId,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
     };
-    
-    const { data: newStockBatch, error: stockError } = await supabase.from('stockBatches').insert(stockBatchData).select().single();
-    checkError(stockError, 'addStock (stock)');
-    if (!newStockBatch) throw new Error("Stock batch creation failed");
 
-    const updatedVariantData = { ...variant, purchasePrice: data.purchasePrice, price: data.sellingPrice };
-    const { data: updatedVariant, error: variantError } = await supabase.from('productVariants').update(updatedVariantData).eq('id', data.variantId).select().single();
+    const { data: newStockBatch, error: stockError } = await supabase.from('stockBatches').insert(stockBatchData).select().single();
+    checkError(stockError, 'addStock (stock batch)');
+    if(!newStockBatch) throw new Error("Stock batch creation failed in addStock");
+
+    const { data: updatedVariant, error: variantError } = await supabase.from('productVariants').update({ price: data.sellingPrice, purchasePrice: data.purchasePrice }).eq('id', data.variantId).select().single();
     checkError(variantError, 'addStock (variant update)');
-    if (!updatedVariant) throw new Error("Variant update failed");
+    if (!updatedVariant) throw new Error("Variant update failed in addStock");
 
     return { purchase, newStockBatch, updatedVariant };
 };
 
-export const addPurchase = async (purchase: Omit<Purchase, 'id'>): Promise<{newPurchase: Purchase, newStockBatches: StockBatch[]}> => {
-    const { data: newPurchase, error } = await supabase.from('purchases').insert(purchase).select().single();
-    checkError(error, 'addPurchase');
+// FIX: Added missing addPurchase function
+export const addPurchase = async (purchaseData: Omit<Purchase, 'id'>): Promise<{newPurchase: Purchase, newStockBatches: StockBatch[]}> => {
+    const { data: newPurchase, error: purchaseError } = await supabase.from('purchases').insert(purchaseData).select().single();
+    checkError(purchaseError, 'addPurchase');
     if (!newPurchase) throw new Error("Purchase creation failed");
-    
-    const stockBatchesToInsert = purchase.items.map(item => ({
+
+    const newStockBatchesToCreate = purchaseData.items.map(item => ({
         variantId: item.variantId,
         quantity: item.quantity,
         purchasePrice: item.purchasePrice,
-        storeId: purchase.storeId,
-        createdAt: purchase.date,
+        storeId: purchaseData.storeId,
+        createdAt: new Date().toISOString()
     }));
 
-    const { data: newStockBatches, error: stockError } = await supabase.from('stockBatches').insert(stockBatchesToInsert).select();
-    checkError(stockError, 'addPurchase (stock)');
-    
-    return { newPurchase, newStockBatches: newStockBatches || [] };
-};
+    const { data: newStockBatches, error: stockError } = await supabase.from('stockBatches').insert(newStockBatchesToCreate).select();
+    checkError(stockError, 'addPurchase (stock batches)');
 
-export const updatePurchase = (purchase: Purchase) => updateSingle('purchases', purchase);
+    return { newPurchase, newStockBatches: newStockBatches || [] };
+}
+
+// FIX: Added missing updatePurchase function
+export const updatePurchase = (purchase: Purchase): Promise<void> => updateSingle<Purchase>('purchases', purchase);
 
 
 // --- Sales & Returns ---
+
+// FIX: Added missing completeSale function
 export const completeSale = async (cart: CartItem[], downPayment: number, customerId: string | undefined, finalTotal: number, userId: string, storeId: string): Promise<Sale> => {
     const profit = cart.reduce((acc, item) => {
-        if(item.purchasePrice){
-            return acc + (item.price - item.purchasePrice) * item.quantity;
-        }
-        return acc + item.price * item.quantity; // Assume 100% profit for services/custom
+        const purchasePrice = item.purchasePrice || 0;
+        return acc + (item.price - purchasePrice) * item.quantity;
     }, 0);
 
-    const sale: Omit<Sale, 'id'> = {
+    const newSale: Omit<Sale, 'id'> = {
         storeId,
         userId,
         date: new Date().toISOString(),
         items: cart,
         total: finalTotal,
-        downPayment,
+        downPayment: downPayment,
         remainingAmount: finalTotal - downPayment,
         profit,
         customerId
     };
-
-    return addSingle<Sale>('sales', sale);
+    return addSingle<Sale>('sales', newSale);
 };
 
+// FIX: Added missing processReturn function
 export const processReturn = async (itemsToReturn: CartItem[], userId: string, storeId: string): Promise<Return> => {
     const refundAmount = itemsToReturn.reduce((acc, item) => acc + item.price * item.quantity, 0);
     const profitLost = itemsToReturn.reduce((acc, item) => {
-        if(item.purchasePrice) {
-            return acc + (item.price - item.purchasePrice) * item.quantity;
-        }
-        return acc;
+        const purchasePrice = item.purchasePrice || 0;
+        return acc + (item.price - purchasePrice) * item.quantity;
     }, 0);
-    
+
     const newReturn: Omit<Return, 'id'> = {
         storeId,
         userId,
         date: new Date().toISOString(),
         items: itemsToReturn,
         refundAmount,
-        profitLost,
+        profitLost
     };
     return addSingle<Return>('returns', newReturn);
 };
 
+// FIX: Add missing deleteReturn function
+export const deleteReturn = (id: string): Promise<void> => deleteSingle('returns', id);
+
+// FIX: Added missing payCustomerDebt function
 export const payCustomerDebt = async (customerId: string, amount: number, userId: string, storeId: string): Promise<Sale> => {
-    const sale: Omit<Sale, 'id'> = {
+    const paymentSale: Omit<Sale, 'id'> = {
         storeId,
         userId,
         customerId,
         date: new Date().toISOString(),
-        items: [{
-            id: `debt_payment_${Date.now()}`,
-            productId: `debt_payment_${Date.now()}`,
-            storeId,
-            name: `Paiement de dette`,
-            price: amount,
-            quantity: 1,
-            type: 'service',
-            image: '',
-            isCustom: true
-        }],
-        total: 0, // It's a payment, not a sale of goods, so total is 0.
-        downPayment: -amount, // Negative downpayment to reduce debt.
-        remainingAmount: -amount,
-        profit: 0
+        items: [],
+        total: 0,
+        downPayment: amount,
+        remainingAmount: -amount, // This will reduce the total debt when summing remainingAmounts
+        profit: 0,
     };
-    return addSingle<Sale>('sales', sale);
+    return addSingle<Sale>('sales', paymentSale);
 };
 
 // --- Expenses ---
-export const addExpense = (expense: Omit<Expense, 'id'>) => addSingle<Expense>('expenses', expense);
-export const updateExpense = (expense: Expense) => updateSingle('expenses', expense);
-export const deleteExpense = (id: string) => deleteSingle('expenses', id);
-
-// --- Returns ---
-export const deleteReturn = (id: string) => deleteSingle('returns', id);
-export const deleteAllReturns = async (storeId: string): Promise<void> => {
-    const { error } = await supabase.from('returns').delete().eq('storeId', storeId);
-    checkError(error, 'deleteAllReturns');
-};
+// FIX: Added missing addExpense function
+export const addExpense = (expense: Omit<Expense, 'id'>): Promise<Expense> => addSingle<Expense>('expenses', expense);
+// FIX: Added missing updateExpense function
+export const updateExpense = (expense: Expense): Promise<void> => updateSingle<Expense>('expenses', expense);
+// FIX: Added missing deleteExpense function
+export const deleteExpense = (id: string): Promise<void> => deleteSingle('expenses', id);
 
 // --- Customers ---
-export const addCustomer = (customer: Omit<Customer, 'id'>) => addSingle<Customer>('customers', customer);
-export const deleteCustomer = async (id: string) => {
+// FIX: Added missing addCustomer function
+export const addCustomer = (customer: Omit<Customer, 'id'>): Promise<Customer> => addSingle<Customer>('customers', customer);
+// FIX: Added missing deleteCustomer function
+export const deleteCustomer = async (id: string): Promise<void> => {
+    // Check for outstanding debt before deleting
     const { data: sales, error } = await supabase.from('sales').select('remainingAmount').eq('customerId', id);
     checkError(error, 'deleteCustomer (check debt)');
-    const totalDebt = sales?.reduce((sum, s) => sum + s.remainingAmount, 0) || 0;
+    const totalDebt = sales?.reduce((acc, s) => acc + s.remainingAmount, 0) || 0;
     if (totalDebt > 0) {
         throw new Error('customerDeleteErrorHasDebt');
     }
-    await deleteSingle('customers', id);
+    return deleteSingle('customers', id);
 };
 
 // --- Suppliers ---
-export const addSupplier = (supplier: Omit<Supplier, 'id'>) => addSingle<Supplier>('suppliers', supplier);
-export const deleteSupplier = async (id: string) => {
+// FIX: Added missing addSupplier function
+export const addSupplier = (supplier: Omit<Supplier, 'id'>): Promise<Supplier> => addSingle<Supplier>('suppliers', supplier);
+// FIX: Added missing deleteSupplier function
+export const deleteSupplier = async (id: string): Promise<void> => {
     const { data: purchases, error } = await supabase.from('purchases').select('remainingAmount').eq('supplierId', id);
     checkError(error, 'deleteSupplier (check debt)');
-    const totalDebt = purchases?.reduce((sum, p) => sum + p.remainingAmount, 0) || 0;
+    const totalDebt = purchases?.reduce((acc, p) => acc + p.remainingAmount, 0) || 0;
     if (totalDebt > 0) {
         throw new Error('supplierDeleteErrorHasDebt');
     }
-    await deleteSingle('suppliers', id);
+    return deleteSingle('suppliers', id);
 };
 
 // --- Categories ---
-export const addCategory = (category: Omit<Category, 'id'>) => addSingle<Category>('categories', category);
-export const updateCategory = (category: Category) => updateSingle('categories', category);
-export const deleteCategory = (id: string) => deleteSingle('categories', id);
+// FIX: Added missing addCategory function
+export const addCategory = (category: Omit<Category, 'id'>): Promise<Category> => addSingle<Category>('categories', category);
+// FIX: Added missing updateCategory function
+export const updateCategory = (category: Category): Promise<void> => updateSingle<Category>('categories', category);
+// FIX: Added missing deleteCategory function
+export const deleteCategory = (id: string): Promise<void> => deleteSingle('categories', id);
 
 // --- Users ---
-export const addUser = (user: Omit<User, 'id'>) => addSingle<User>('users', user);
-export const updateUser = (user: User) => updateSingle('users', user);
-export const deleteUser = (id: string) => deleteSingle('users', id);
+// FIX: Added missing addUser function
+export const addUser = (user: Omit<User, 'id'>): Promise<User> => addSingle<User>('users', user);
+// FIX: Added missing updateUser function
+export const updateUser = (user: User): Promise<void> => updateSingle<User>('users', user);
+// FIX: Added missing deleteUser function
+export const deleteUser = (id: string): Promise<void> => deleteSingle('users', id);

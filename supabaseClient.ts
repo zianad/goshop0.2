@@ -7,7 +7,7 @@ const supabaseUrl: string = "https://kclntdmvpeykknjnndeb.supabase.co";
 // Remplacez la chaîne de caractères ci-dessous par votre clé 'anon' publique Supabase (PAS la clé 'publishable').
 // Vous pouvez la trouver dans le tableau de bord de votre projet Supabase -> Paramètres du projet -> API.
 // La clé est une longue chaîne de caractères qui commence par "eyJ...".
-const supabaseAnonKey: string = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjbG50ZG12cGV5a2tuam5uZGViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1OTk0MjEsImV4cCI6MjA3NTE3NTQyMX0.O49_JCNUZxPlp6EAqbZHUpJWYJGFBl63QsnmBICyphI";
+const supabaseAnonKey: string = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjbG50ZG12cGV5a2tqbm5uZGViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDY4NzM3MTIsImV4cCI6MjAyMjQ0OTcxMn0.55I4S0y3i1-3bcz_rt5h9AY0a8fad23t_u_4nYp-Pek";
 
 
 /**

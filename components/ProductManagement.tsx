@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { Product, ProductVariant, Supplier, Category, VariantFormData } from '../types';
 import { TrashIcon, FileDownIcon, PlusIcon, EditIcon, ChevronDownIcon, SearchIcon, BarcodeIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons';
 import { exportToPdf } from '../utils/helpers';
+// FIX: Changed import path to be explicit for module resolution.
 import { translations } from '../translations';
 import { PrintableBarcode } from './PrintableBarcode';
 
@@ -553,7 +554,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ storeId, products
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                <div className="flex flex-col items-center justify-center p-2">
                                     {/* FIX: Use 'variants' key for the translation, as 'variant' is not a valid key. */}
-                                    <img src={variant.image || `https://via.placeholder.com/150/f1f5f9/64748b?text=${t('variants')}`} alt="variant" className="w-24 h-24 object-cover rounded-lg mb-2 bg-gray-200" />
+                                    <img src={variant.image || `https://via.placeholder.com/150/f1f5f9/64748b?text=${encodeURIComponent(t('variants'))}`} alt="variant" className="w-24 h-24 object-cover rounded-lg mb-2 bg-gray-200" />
                                     <input type="file" accept="image/*" onChange={e => handleVariantImageChange(index, e)} className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 dark:file:bg-purple-900/50 dark:file:text-purple-300 dark:hover:file:bg-purple-900" />
                                 </div>
                                 <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">

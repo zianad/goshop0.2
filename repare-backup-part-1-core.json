@@ -1,0 +1,976 @@
+{
+  "stores": [
+    {
+      "id": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "carrè fer",
+      "address": "Hay massira 03 av khalifa ben ismail N040 casablanca",
+      "ice": "002424279000067",
+      "isActive": true,
+      "licenseKey": "LUNA-E4F9E215",
+      "licenseProof": "TFVOQS1FNEY5RTIxNTo6LTIxNDIyNzc5Mjk=",
+      "trialStartDate": null,
+      "trialDurationDays": 7
+    }
+  ],
+  "users": [
+    {
+      "id": "aa3c2235-17c3-482c-8db9-2f68aec0e7f4",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "name": "Admin",
+      "email": "",
+      "password": "carrefer1955",
+      "role": "admin"
+    },
+    {
+      "name": "nouhaila",
+      "pin": "1111",
+      "role": "seller",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "d03b46e5-07c0-42e9-932f-8e2374a02c25"
+    }
+  ],
+  "customers": [
+    {
+      "name": "MOHAMMED LAHAYA",
+      "phone": "0500000000",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "bc9271d9-ef07-4c96-8920-088c5f9f61e4"
+    },
+    {
+      "name": "SONAFARE",
+      "phone": "002722624000020",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "84a8f272-8109-4064-966e-5a86cc652540"
+    },
+    {
+      "name": "VEMO TEK",
+      "phone": "003240742000077",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "6b7285c9-c891-4a16-a812-1777b56e0f45"
+    },
+    {
+      "name": "STACER",
+      "phone": "001538644000063",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "3b3af723-6bca-45b0-805d-8fd158fc5ee6"
+    },
+    {
+      "name": "ABRAJ BOMIA",
+      "phone": "\t003112765000025",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "1c404a76-e0a0-4a78-9155-6ea8a9afd800"
+    },
+    {
+      "name": "GIGAFER",
+      "phone": "002328149000051",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "195deacb-c1c0-469e-a6c3-6e76b218f6c0"
+    },
+    {
+      "name": "ETFP",
+      "phone": "\t001459643000060",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "0a8e31e7-4b88-482b-b875-b13817b8f218"
+    },
+    {
+      "name": "CESA PROJECT",
+      "phone": "\t002816603000010",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "00cf680f-070b-4793-b498-ed75ff33e2e6"
+    },
+    {
+      "name": "WINNER PROJECT",
+      "phone": "003134302000041",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "4f4bf6b9-c358-454a-adf3-c7c1b22857a8"
+    },
+    {
+      "name": "AGALUMINIUM",
+      "phone": "003091368000012",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "13108b41-07de-4cf6-aef0-d62a442a5bab"
+    },
+    {
+      "name": "SWAFER",
+      "phone": "001429130000090",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "01738198-0af5-448b-892d-a9044f2e406e"
+    },
+    {
+      "name": "VANALOGE",
+      "phone": "002354122000090",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "f128696c-e11b-45db-ad1a-19a6c795141c"
+    },
+    {
+      "name": "MANUFACTURE APPAREILLAGE ELECTRONIC",
+      "phone": "\t000082497000089",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "5b49af81-de8e-4cdc-8880-98f0c5322746"
+    },
+    {
+      "name": "\tMOBILIFER",
+      "phone": "\t000038152000036",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "56ac4d34-a56e-4f7f-8ecd-e601fbc0d67a"
+    },
+    {
+      "name": "OUMA-PROMO",
+      "phone": "\t002251390000042",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "c137f115-21db-45ff-b595-78c3b2a10ce6"
+    },
+    {
+      "name": "MAILLE CITY",
+      "phone": "001534206000094",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "100f4e7c-3042-41c9-8b01-92571ba6e688"
+    },
+    {
+      "name": "\tPOLE DE ROULEMENT",
+      "phone": "00938455000085",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "7b992ce9-69ba-4653-bc5f-471e1db3a1e7"
+    },
+    {
+      "name": "\tASSOCIATION SPORTIVE OMNIS POTCLUB",
+      "phone": "000000000000",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "cf528c15-9921-4768-ab00-1b0e253a5f15"
+    },
+    {
+      "name": "AMMS",
+      "phone": "003077753000084",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "08c8e293-824f-4bcb-9079-d596d09eb665"
+    },
+    {
+      "name": "START PROMO",
+      "phone": "003025800000001",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "c65c0b46-3a28-48da-89bb-87fb23d97b6e"
+    },
+    {
+      "name": "TAG BUILDING",
+      "phone": "\t0022173577000070",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "c0545ed7-1f25-4155-bc57-703c97b9d489"
+    },
+    {
+      "name": "FREZEBOMELC",
+      "phone": "001950619000009",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "df06f036-0d6d-42e2-8318-5675158f4894"
+    },
+    {
+      "name": "NORMOR TRAVAUX",
+      "phone": "000089993000039",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "ebf23379-b64a-44d9-9848-b2f7d27bda95"
+    },
+    {
+      "name": "KHALID MOBILIER",
+      "phone": "003158225000043",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "2db9d4fa-3ea2-4d19-a7dd-06544284d387"
+    },
+    {
+      "name": "SARAMERTEX",
+      "phone": "000059692000068",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "c7992ecb-829d-4d1b-914e-d5bcc91c660a"
+    },
+    {
+      "name": "HOURFANE PIECES AUTOS",
+      "phone": "002703158000056",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "3ed186ca-e645-4d9e-a7e3-d6b6613af4b4"
+    },
+    {
+      "name": "FLORALIA IMMO",
+      "phone": "000165079000017",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "06bc7b76-a3e9-48fa-bf7c-518e4e87d9f9"
+    },
+    {
+      "name": "\tMAROCAINE MODERNE DE RECYCLAGE",
+      "phone": "001652787000086",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "efd4449a-6aa7-4e46-9f86-009387965569"
+    },
+    {
+      "name": "CHERIFCONCEPT",
+      "phone": "002912218000060",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "c11cd42d-35e5-464f-88c4-d84f68deedbc"
+    },
+    {
+      "name": "AUTO MOUVE HTM",
+      "phone": "002808401000013",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "237446ab-a595-4c78-bcdb-4002c45402ee"
+    },
+    {
+      "name": "SOCOPINE",
+      "phone": "000061402000070",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "b0f10ec9-5a86-4dac-84dc-ee1c5ad0872b"
+    },
+    {
+      "name": "ESPACE AGENCEMENT",
+      "phone": "000204356000039",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "273db8d7-ac4f-42c5-b17c-2b24cd93ff95"
+    },
+    {
+      "name": "LABO METAL",
+      "phone": "\t001514342000012",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "4e876c6d-b367-4a04-b824-94164d7b84df"
+    },
+    {
+      "name": "CMG MAROC",
+      "phone": "\t003006733000031",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "d701a881-52aa-49ba-a459-8a38cc4fd22b"
+    },
+    {
+      "name": "OCEO NTELECOM",
+      "phone": "000029257000029",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "cb748da5-1812-4d12-98c8-9e7b08c86745"
+    },
+    {
+      "name": "FRTSAN",
+      "phone": "003153746000017",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "f7961aa3-4a0f-48af-8a09-c0825b2b1789"
+    },
+    {
+      "name": "SFOLIX",
+      "phone": "002549731000006",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "d53687ad-dce7-41d9-a0f6-df88a1a41d0e"
+    },
+    {
+      "name": "TECHMITEL",
+      "phone": "00156162100096",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "2ba13ba2-0ba4-4187-8b02-861d203e89bf"
+    },
+    {
+      "name": "STE NCCRTRAVAUX",
+      "phone": "003102475000047",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "5d5e30b2-9ffd-4842-919e-34d83982e1c5"
+    },
+    {
+      "name": "WALDMO",
+      "phone": "00000000003",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "484da07f-502e-4c62-8679-1b2d711b09ee"
+    },
+    {
+      "name": "YOUSSEF JARNA",
+      "phone": "0000000000000",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "d8e48b17-cdff-461a-9ed7-42022554bb23"
+    },
+    {
+      "name": "\tHAY MOHEMADI N°2",
+      "phone": "0000000000001",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "2a4b8833-08c7-447c-ae47-5ab7bb14c282"
+    },
+    {
+      "name": "RACHID PALIO",
+      "phone": "00000000002",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "43f7a61c-03ea-40b0-b5db-b61458aa9ef5"
+    },
+    {
+      "name": "\tSIMOHAMEDJARNA",
+      "phone": "00000000004",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "cf4cfdb3-d668-4f82-b7d9-7c53609c4561"
+    },
+    {
+      "name": "MUSTAPHAJARNA",
+      "phone": "000000000005",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "9def167e-1795-4f79-a471-20f79ca05282"
+    },
+    {
+      "name": "\tHICHAMJARNA",
+      "phone": "00000000006",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "8d3d6889-bd30-41c4-9f24-112fc1a6bfa9"
+    },
+    {
+      "name": "ABDILAHJARNA",
+      "phone": "000000000006",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "557f34e5-d007-426d-af9e-229571812af7"
+    },
+    {
+      "name": "RACHID MOTO",
+      "phone": "000000000007",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "4bf14b06-c961-45d1-811b-9f915c8495cf"
+    },
+    {
+      "name": "CONCATEC",
+      "phone": "001517048000088",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "56c3236a-f3de-48a9-892a-9baca3519213"
+    },
+    {
+      "name": "AZIZ BOUCHAAB",
+      "phone": "00000000007",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "aecf4e5a-bec2-48b5-af41-ca7a13bb26ce"
+    },
+    {
+      "name": "TOUFIK BELIDRI",
+      "phone": "0000000000008",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "35c82410-1718-4931-b2bf-1b12ace5fa79"
+    },
+    {
+      "name": "KHALIDCHEHAB",
+      "phone": "000000000009",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "b6f55990-3216-4093-9a20-40d14d949e06"
+    },
+    {
+      "name": "AHMAD 205",
+      "phone": "00000000010",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "fbe4a3e5-3763-49a5-b38e-93ef217b4249"
+    },
+    {
+      "name": "YANPUB",
+      "phone": "003407133000075",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "3f633277-4e97-410a-8c31-102c341f7884"
+    },
+    {
+      "name": "\tMOL FRARN",
+      "phone": "000000000011",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "eb9b0be8-312c-4e4a-99b1-11922ba3eede"
+    },
+    {
+      "name": "\tTARIK ZOUBI",
+      "phone": "0661834854",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "70f11f06-aa99-4fb4-9307-79e3e188c615"
+    },
+    {
+      "name": "\tMOJOD BUP SERVICE",
+      "phone": "003228842000016",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "41e8aa5b-4ea1-43c3-aa85-8d36506996ee"
+    },
+    {
+      "name": "HKO COMPANY",
+      "phone": "001908481000032",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "0c1e5a36-aa96-4cbe-93fe-24acf5c1d486"
+    },
+    {
+      "name": "9A3A AFRAH",
+      "phone": "00000000013",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "ec5bfa64-7364-40a7-8ef8-b13df58439ed"
+    },
+    {
+      "name": "KARIM BELDRI",
+      "phone": "\t002424279000067",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "b6f1045c-a6e1-4e6d-98d3-a1acbe665d2a"
+    },
+    {
+      "name": "OUADIFER",
+      "phone": "000000000014",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "22cbc68b-0c9d-4920-ba70-cfe0597c968a"
+    },
+    {
+      "name": "ETABLISEMENT AKARKAB",
+      "phone": "001630221000014",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "d2e08974-8bcd-4168-aad7-9cc7dba8c274"
+    },
+    {
+      "name": "IDEALE",
+      "phone": "001620643000018",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "1027a63c-7c3e-4ee8-83f6-ce659c0dfefd"
+    },
+    {
+      "name": "ABDLAH INOX",
+      "phone": "0666024537",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "e5d42ed9-8860-4159-93c5-e0a02d9399f8"
+    },
+    {
+      "name": "lArt ouahdani de Menuiserie Aluminium",
+      "phone": "\t002091975000066",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "7d4516f4-9c13-4a2c-8793-251a58def9d3"
+    },
+    {
+      "name": "\tARCHI LINA",
+      "phone": "003490618000066",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "a0463b8f-ea47-4fd3-ae91-7059f48a67bd"
+    },
+    {
+      "name": "Auto-entrepreneur",
+      "phone": "002847239000054",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "a54a545e-82c8-4cb4-8154-28d4368a3433"
+    },
+    {
+      "name": "\tKenzi Fer",
+      "phone": "\t0646819919",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "5e70eb6c-ff51-4067-97f4-84c421fdcece"
+    },
+    {
+      "name": "MOHAMED RAFII JARNA",
+      "phone": "000000000020",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "9a92577b-3963-4d20-bcb7-8d00e094441f"
+    },
+    {
+      "name": "\tPRECIEUX PRINT",
+      "phone": "002187888000024",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "303cdd09-6a08-49da-b05d-49c3a07cb872"
+    },
+    {
+      "name": "COVERPLA",
+      "phone": "001515005000056",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "69201970-eafd-47e5-868d-9bb82e0bbd0f"
+    },
+    {
+      "name": "ATLYKAS GROUP",
+      "phone": "002830558000070",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "de39f4fd-9214-4443-afb1-49a51c1ef2ef"
+    },
+    {
+      "name": "MOMAN",
+      "phone": "0772585307",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "7d44c089-32dd-4081-8686-8e3468cb17f1"
+    },
+    {
+      "name": "CLIENT PARTICULIER",
+      "phone": "000000000",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "7a26487c-01a8-4c31-a7d8-f3f5afc2f23c"
+    },
+    {
+      "name": "MOHAMED HONDA",
+      "phone": "0000000000",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "731e2e7a-d518-4b2d-a6c7-1157018d6846"
+    },
+    {
+      "name": "GAZA DROGRI",
+      "phone": "00000000015",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "01e8d518-589e-402a-87cf-e825d2604628"
+    },
+    {
+      "name": "ABDLATIFJARNA",
+      "phone": "000000000006",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "cb57175b-cee7-4d82-987a-3c045362af0e"
+    }
+  ],
+  "suppliers": [
+    {
+      "name": "DISTRIFER",
+      "phone": "0522568415",
+      "email": "",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "69548e60-088b-43c8-93f0-48107d00f5fc"
+    }
+  ],
+  "categories": [
+    {
+      "name": "Tube carre",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "10424f9c-726d-4562-bdae-2a4060c38a25",
+      "image": ""
+    },
+    {
+      "name": "fer carre",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "adf39f21-5dc2-4d97-b8c4-7fe659aef128",
+      "image": ""
+    },
+    {
+      "name": "fer rond",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "8b4bb930-6579-440e-b0b8-143fdca7ddbd",
+      "image": ""
+    },
+    {
+      "name": "corienere",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "79937a30-f2ed-49f2-916c-8d97d7c1e87f",
+      "image": ""
+    },
+    {
+      "name": "Fer plat",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "271b0247-ac50-441e-804a-b2741db1fdcd",
+      "image": ""
+    },
+    {
+      "name": "tube rond",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "932def1c-90cd-4671-b317-046292e57885",
+      "image": ""
+    },
+    {
+      "name": "Rectangulaire",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "b39604f0-1387-4067-ba1a-f061544d156d",
+      "image": ""
+    },
+    {
+      "name": "H ipe",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "49974456-be71-4fe3-8ad5-1baa6b7b0151",
+      "image": ""
+    },
+    {
+      "name": "Fer UAC",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "542850a1-836b-47df-967d-3bb719c56542",
+      "image": ""
+    },
+    {
+      "name": "Galva-tube carre",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "bc3ae8ba-79a5-4898-a57c-4240abb9f20d",
+      "image": ""
+    },
+    {
+      "name": "Galva-tube rond",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "759363b1-e4ee-44be-82ba-da75db955cac"
+    },
+    {
+      "name": "Galva rectangulaire",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "1c1c528a-3841-4400-a8e6-a458fbb82aaf",
+      "image": ""
+    },
+    {
+      "name": "Galva-faux cadre",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "72bc2246-acb0-4065-8c94-5981ea27e395",
+      "image": ""
+    },
+    {
+      "name": "coulis",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "718d3cca-a914-484e-a041-6c7208b42a78",
+      "image": ""
+    },
+    {
+      "name": "Galva-coulis",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "5433bf64-eb4c-4dcb-8edd-27f1e2e54164",
+      "image": ""
+    },
+    {
+      "name": "fer - T",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "5df7c786-c412-4d6d-b116-b56bfa5daa60",
+      "image": ""
+    },
+    {
+      "name": "Galva- chemin de roulement",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "b8eb1a59-75c6-4036-89fc-f27d34928e76"
+    },
+    {
+      "name": "tube - cuivre",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "450e7066-59d0-4096-bd59-986042b81189"
+    },
+    {
+      "name": "Lama rideau galva 10MT en 5M",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "d935d583-391f-4869-8100-5ede1dad34d3",
+      "image": ""
+    },
+    {
+      "name": "Lama rideau galva pleine en 6M",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "3f295476-a039-4c04-be3b-b497059f6c51",
+      "image": ""
+    },
+    {
+      "name": "Lama rideau galva pleine en 5M",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "8f3fc54e-c460-4352-b0c8-e433aa92f26c",
+      "image": ""
+    },
+    {
+      "name": "Serrure Apparent",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "470cedfa-e1bd-410e-a4af-3e83b48c8b5d",
+      "image": ""
+    },
+    {
+      "name": "Serrure Cadenas",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "6be4eefd-636f-4c54-a13c-39639a5efb93",
+      "image": ""
+    },
+    {
+      "name": "Serrure Encastree",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "0befa1b7-aaac-4242-b79a-c881df242010",
+      "image": ""
+    },
+    {
+      "name": "Canon",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "06a3304e-568c-4691-bda5-ad48ede3ac51",
+      "image": ""
+    },
+    {
+      "name": "Metre",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "dd49f396-8697-409e-bbb0-613decaed203",
+      "image": ""
+    },
+    {
+      "name": "Verrou a Ressort",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "5c0bfaac-de61-4595-87b2-342acc8de6b1",
+      "image": ""
+    },
+    {
+      "name": "Verrou Normal",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "69cc2132-f27f-4598-8108-3b4e24ecf674",
+      "image": ""
+    },
+    {
+      "name": "Roue orange",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "997dbcf5-d32a-4483-8e26-5b89a34515e7",
+      "image": ""
+    },
+    {
+      "name": "Roue blanche",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "09e49f79-edb1-4d4d-804c-41595955b940",
+      "image": ""
+    },
+    {
+      "name": "Roue noir",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "0932bb0d-0b7b-443a-950a-8e6d46db56de",
+      "image": ""
+    },
+    {
+      "name": "Roue nylon blanche",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "bec60090-9b3d-4b59-aa35-3bf3d2d9879a",
+      "image": ""
+    },
+    {
+      "name": "Motifs Dècoratifs",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "ad282c06-9270-412e-9ab7-b8e894f18da4",
+      "image": ""
+    },
+    {
+      "name": "Poignée fer forge",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "efcb39fa-a9de-4105-a454-a79e53d21244",
+      "image": ""
+    },
+    {
+      "name": "Disque",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "fc4782d9-6f0e-4037-ae3d-a08e5a2f4479",
+      "image": ""
+    },
+    {
+      "name": "Baguette a souder",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "881972fb-60a9-4903-bcaf-6ef816f9199b",
+      "image": ""
+    },
+    {
+      "name": "Paumelles à souder",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "a5893759-3cb7-4563-9c62-6b3a2cadb478",
+      "image": ""
+    },
+    {
+      "name": "Paumelles Charnieres",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "61baf668-a984-4606-9951-e7b1c364bc1a",
+      "image": ""
+    },
+    {
+      "name": "Accessoires inox",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "b52daf61-73b2-4a8c-9d1a-c7364e3f37fc",
+      "image": ""
+    },
+    {
+      "name": "Les accessoires rideaux",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "7e0347e0-21f3-4164-b709-bf01aeeca9af",
+      "image": ""
+    },
+    {
+      "name": "Tole galva",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "9aec9fd6-1a6c-488b-9799-0dca53603e2b",
+      "image": ""
+    },
+    {
+      "name": "Tole noir",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "36efcff0-d09d-4b19-a6df-e23e2505beaa",
+      "image": ""
+    },
+    {
+      "name": "Tole per forè",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "6b0d2f19-da71-466d-98b1-e68c1a4d28ba",
+      "image": ""
+    },
+    {
+      "name": "Tole genfles",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "ca222050-c242-48b2-9e84-8ab9adeebeb3",
+      "image": ""
+    },
+    {
+      "name": "Tole redal",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "d2b3f12b-6285-4d16-a15e-acbf3fdec4ff",
+      "image": ""
+    },
+    {
+      "name": "Tole inox",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "c672b1ed-8980-4fa7-a1bb-335df8882dda",
+      "image": ""
+    },
+    {
+      "name": "Galet A Gorge Rond",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "264210f9-ebe4-4fcc-ad4f-a6cc379d2e95",
+      "image": ""
+    },
+    {
+      "name": "Rivets",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "40ac1776-ce4e-49f9-90b8-1b7102d8d9ad",
+      "image": ""
+    },
+    {
+      "name": "Embout pour tube",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "180aeec5-5edd-4c80-bbfa-0a58c23b542c",
+      "image": ""
+    },
+    {
+      "name": "Chove metal",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "f6e40359-0bf5-47dd-9641-3e8e53dc0d74",
+      "image": ""
+    },
+    {
+      "name": "Vis",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "c54bea9b-389b-44da-b132-60aea420e9fd",
+      "image": ""
+    },
+    {
+      "name": "Masque eco arc",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "abea10c3-7d56-4f05-9b15-54e87e01befc",
+      "image": ""
+    },
+    {
+      "name": "Cuivre",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "d3cd28c2-c0e7-4176-9b78-a4ec75a72bac",
+      "image": ""
+    },
+    {
+      "name": "Grillage Galvanise",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "3c07288e-a6c3-416d-b610-9199bda6dc5d",
+      "image": ""
+    },
+    {
+      "name": "Grillage Noir",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "667ee629-335f-4bc1-bf9c-e70da5423f3d",
+      "image": ""
+    },
+    {
+      "name": "Boite cap",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "5d72f8dc-64d6-4623-95fe-fcc46affb33b",
+      "image": ""
+    },
+    {
+      "name": "Equerre aluminium",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "05363e57-4b52-497c-b079-e3962bc2e60c",
+      "image": ""
+    },
+    {
+      "name": "RAKOL",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "2473be22-83fc-4b59-be39-b563c91a33f2"
+    },
+    {
+      "name": "Coude a souder 3D",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "b402700d-fbcc-4dbe-8a7c-0898de6de144",
+      "image": ""
+    },
+    {
+      "name": "Tole noir ST",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "id": "ff39149f-1095-48d8-8b9d-42de32764e6b",
+      "image": ""
+    },
+    {
+      "name": "tole laser",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "image": "",
+      "id": "b5cf4971-37e3-4356-a042-3dd902580031"
+    },
+    {
+      "name": "Vis Autoperceuse",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "image": "",
+      "id": "106de66d-e1f7-4e31-8108-250b4175c271"
+    },
+    {
+      "name": "Les mail",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "image": "https://via.placeholder.com/150/a7f3d0/4d7c0f?text=Les%20mail",
+      "id": "e2a15944-a245-4e82-901e-43107a0bc85f"
+    },
+    {
+      "name": "ECRO",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "image": "https://via.placeholder.com/150/a7f3d0/4d7c0f?text=ECRO",
+      "id": "aab6d314-9631-4840-968a-53dd9dad1021"
+    },
+    {
+      "name": "Cro",
+      "storeId": "72763963-0acb-406f-9dee-61c1ca5258ed",
+      "image": "https://via.placeholder.com/150/a7f3d0/4d7c0f?text=Cro",
+      "id": "f8f2d493-0c05-43a4-90b5-d9082ba9bacb"
+    }
+  ],
+  "purchases": [],
+  "sales": [],
+  "expenses": [],
+  "returns": [],
+  "stockBatches": []
+}
+```
