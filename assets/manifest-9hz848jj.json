@@ -1,0 +1,21 @@
+{
+  "name": "Système de Point de Vente",
+  "short_name": "POS",
+  "description": "Un système de point de vente (POS) multi-magasins complet, développé avec React et TypeScript.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#14B8A6",
+  "icons": [
+    {
+      "src": "https://storage.googleapis.com/appmaker-310316.appspot.com/user_4a0de5b0722a4666a2657c793742469a/app_primo_4f5f590457634f19b16ab20c918a38b2/1721066782500_834",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://storage.googleapis.com/appmaker-310316.appspot.com/user_4a0de5b0722a4666a2657c793742469a/app_primo_4f5f590457634f19b16ab20c918a38b2/1721066782500_834",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
