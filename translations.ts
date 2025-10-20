@@ -283,7 +283,6 @@ export const translations = {
     saving: 'Enregistrement',
     
     // Customer Management
-    purchaseHistoryFor: "Historique d'achat pour {name}",
     totalPurchases: 'Total des achats',
     currentDebt: 'Dette actuelle',
     printReport: 'Imprimer le rapport',
@@ -306,7 +305,7 @@ export const translations = {
     printAllDebtReports: 'Imprimer tous les rapports de dette',
     manageDebt: 'Gérer la dette',
     printDebtReport: 'Imprimer le rapport de dette',
-    history: 'Historique',
+    history: "Historique d'achat pour {name}",
     noCustomersAdded: 'Aucun client ajouté.',
     debtReportFor: 'Rapport de Dette pour {name}',
     noDebtsToReport: "Aucune dette à signaler.",
@@ -320,7 +319,6 @@ export const translations = {
     addProductsToPurchase: 'Ajouter des produits à l\'achat',
     selectProducts: 'Sélectionner un produit existant',
     orAddNewProductPrompt: 'Ou créer un nouveau produit pour ce fournisseur ?',
-    addNewProductButton: 'Créer un nouveau produit',
     saveAndAddToList: 'Enregistrer et Ajouter à la liste',
     noProductsInPurchase: "Aucun produit dans cet achat.",
     cash: 'Espèces',
@@ -356,7 +354,7 @@ export const translations = {
     categoryUpdatedSuccess: 'Catégorie "{name}" mise à jour.',
     categoryList: 'Liste des Catégories',
     noCategoriesAdded: 'Aucune catégorie ajoutée.',
-
+    
     // Service Management
     editService: 'Modifier le Service',
     serviceName: 'Nom du service',
@@ -395,14 +393,23 @@ export const translations = {
     backupButton: 'Télécharger la Sauvegarde',
     restoreData: 'Restaurer les Données',
     restoreDataDesc: "Chargez un fichier de sauvegarde pour restaurer l'état de votre magasin. L'application se rechargera.",
-    restoreButton: 'Charger une Sauvegarde',
+    restoreButton: 'Restaurer les données',
     restoreConfirm: "Êtes-vous sûr de vouloir restaurer les données ? L'état actuel sera écrasé. Cette action est irréversible.",
     restoreSuccess: "Restauration réussie ! L'application va maintenant se recharger.",
-    restoreError: 'Fichier de sauvegarde invalide ou corrompu.',
+    restoreError: 'Erreur de restauration. Assurez-vous d\'utiliser un fichier de sauvegarde valide pour ce magasin.',
     jsonParseError: "Erreur d'analyse du fichier JSON. Assurez-vous que le fichier est valide.",
+    restoreFromText: 'Restaurer depuis le texte',
+    restoreFromTextDesc: 'Ceci est la méthode recommandée. Elle évite les problèmes potentiels de téléversement de fichier.',
+    pasteJsonHere: 'Collez ici l\'intégralité du contenu de votre fichier de sauvegarde .json',
+    jsonInvalid: 'JSON invalide',
+    jsonValid: 'Le JSON est valide et prêt à être restauré.',
+    jsonInvalidNotObject: "JSON invalide : les données de sauvegarde doivent être un objet.",
+    invalidBackupStructure: "Fichier de sauvegarde invalide. Le fichier ne semble pas contenir les données requises (stores, users).",
+    jsonInvalidNotCode: "Données invalides. Veuillez coller le contenu d'un fichier de sauvegarde .json, pas un code de programmation.",
+    restoreStoreIdMismatchError: "Erreur : Ce fichier de sauvegarde appartient à un autre magasin. Veuillez utiliser un fichier pour le magasin '{storeName}'.",
     
     // Trial Banner
-    trialDaysRemaining: "Il vous reste {days} jours d'essai.",
+    trialStatusDaysRemaining: "Essai : {days} jours restants",
 
     // Printable Invoice/Receipt
     invoiceTitle: 'FACTURE',
@@ -414,6 +421,14 @@ export const translations = {
     returnReceiptTitle: 'BON DE RETOUR',
     returnIdLabel: 'N° de Retour :',
     refundAmountLabel: 'Montant Remboursé :',
+    addNewProductButton: 'Créer un nouveau produit',
+    
+    // FIX: Add missing keys
+    exportToPdf: 'Exporter en PDF',
+    customItemsInSale: 'Articles personnalisés dans cette vente',
+    sales: 'Ventes',
+    totalExpenses: 'Total des Dépenses',
+    debt: 'Dette',
   },
   ar: {
     // General
@@ -698,7 +713,6 @@ export const translations = {
     saving: 'حفظ...',
     
     // Customer Management
-    purchaseHistoryFor: 'سجل مشتريات {name}',
     totalPurchases: 'إجمالي المشتريات',
     currentDebt: 'الدين الحالي',
     printReport: 'طباعة التقرير',
@@ -721,12 +735,13 @@ export const translations = {
     printAllDebtReports: 'طباعة جميع تقارير الديون',
     manageDebt: 'إدارة الدين',
     printDebtReport: 'طباعة تقرير الدين',
-    history: 'السجل',
+    history: "سجل مشتريات {name}",
     noCustomersAdded: 'لم تتم إضافة أي زبناء.',
     debtReportFor: 'تقرير الدين لـ {name}',
     noDebtsToReport: 'لا توجد ديون للإبلاغ عنها.',
 
     // Supplier Management
+    purchaseHistoryFor: "سجل مشتريات {name}",
     noPurchasesYet: 'لم يتم تسجيل أي مشتريات من هذا المورد.',
     purchaseDate: 'تاريخ الشراء',
     newPurchaseFor: 'شراء جديد من {name}',
@@ -734,7 +749,6 @@ export const translations = {
     addProductsToPurchase: 'إضافة منتجات للشراء',
     selectProducts: 'اختر منتجًا موجودًا',
     orAddNewProductPrompt: 'أو إنشاء منتج جديد لهذا المورد؟',
-    addNewProductButton: 'إنشاء منتج جديد',
     saveAndAddToList: 'حفظ وإضافة إلى القائمة',
     noProductsInPurchase: 'لا توجد منتجات في هذا الشراء.',
     cash: 'نقداً',
@@ -809,14 +823,23 @@ export const translations = {
     backupButton: 'تنزيل النسخة الاحتياطية',
     restoreData: 'استعادة البيانات',
     restoreDataDesc: 'تحميل ملف نسخة احتياطية لاستعادة حالة متجرك. سيتم إعادة تحميل التطبيق.',
-    restoreButton: 'تحميل نسخة احتياطية',
+    restoreButton: 'استعادة البيانات',
     restoreConfirm: 'هل أنت متأكد من رغبتك في استعادة البيانات؟ سيتم الكتابة فوق الحالة الحالية. هذا الإجراء لا يمكن التراجع عنه.',
     restoreSuccess: 'تمت الاستعادة بنجاح! سيتم الآن إعادة تحميل التطبيق.',
-    restoreError: 'ملف النسخ الاحتياطي غير صالح أو تالف.',
+    restoreError: 'خطأ في الاستعادة. تأكد من استخدام ملف نسخ احتياطي صالح لهذا المتجر.',
     jsonParseError: 'خطأ في تحليل ملف JSON. تأكد من أن الملف صالح.',
+    restoreFromText: 'استعادة من النص',
+    restoreFromTextDesc: 'هذه هي الطريقة الموصى بها. إنها تتجنب المشاكل المحتملة في تحميل الملفات.',
+    pasteJsonHere: 'الصق هنا المحتوى الكامل لملف النسخ الاحتياطي .json الخاص بك',
+    jsonInvalid: 'JSON غير صالح',
+    jsonValid: 'JSON صالح وجاهز للاستعادة.',
+    jsonInvalidNotObject: "JSON غير صالح: يجب أن تكون بيانات النسخ الاحتياطي كائنًا.",
+    invalidBackupStructure: "ملف نسخ احتياطي غير صالح. لا يبدو أن الملف يحتوي على البيانات المطلوبة (stores, users).",
+    jsonInvalidNotCode: "بيانات غير صالحة. الرجاء لصق محتوى ملف نسخ احتياطي .json، وليس كود برمجي.",
+    restoreStoreIdMismatchError: "خطأ: ملف النسخ الاحتياطي هذا يخص متجرًا آخر. الرجاء استخدام ملف للمتجر الحالي '{storeName}'.",
 
     // Trial Banner
-    trialDaysRemaining: "تبقى لك {days} أيام في الفترة التجريبية.",
+    trialStatusDaysRemaining: 'تجريبي: تبقى {days} أيام',
 
     // Printable Invoice/Receipt
     invoiceTitle: 'فاتورة',
@@ -828,5 +851,13 @@ export const translations = {
     returnReceiptTitle: 'وصل إرجاع',
     returnIdLabel: 'رقم الإرجاع:',
     refundAmountLabel: 'المبلغ المسترد:',
+    addNewProductButton: 'إنشاء منتج جديد',
+
+    // FIX: Add missing keys
+    exportToPdf: 'تصدير إلى PDF',
+    customItemsInSale: 'العناصر المخصصة في هذه الفاتورة',
+    sales: 'المبيعات',
+    totalExpenses: 'إجمالي المصاريف',
+    debt: 'الدين',
   },
 };

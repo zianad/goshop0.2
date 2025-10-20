@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Supplier, Purchase, Product, ProductVariant, PurchaseItem, Category } from '../types';
+// FIX: Add 'StockBatch' to type import.
+import type { Supplier, Purchase, Product, ProductVariant, PurchaseItem, Category, StockBatch } from '../types';
 import { TruckIcon, PlusIcon, TrashIcon, FileDownIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons';
 import { exportToPdf } from '../utils/helpers';
 import { translations } from '../translations';
@@ -89,10 +90,11 @@ interface NewPurchaseModalProps {
     addProduct: (productData: Omit<Product, 'id'>, variantsData: (Omit<ProductVariant, 'id' | 'productId' | 'storeId'> & { stockQuantity?: number | undefined })[]) => Promise<{ product: Product; variants: ProductVariant[]; }>;
     t: TFunction;
     storeId: string;
+    language: Language; // FIX: Add language to props
 }
 
 // MODAL: New Purchase
-const NewPurchaseModal: React.FC<NewPurchaseModalProps> = ({ supplier, products, variants, categories, onClose, onSave, addProduct, t, storeId }) => {
+const NewPurchaseModal: React.FC<NewPurchaseModalProps> = ({ supplier, products, variants, categories, onClose, onSave, addProduct, t, storeId, language }) => {
     const [items, setItems] = useState<PurchaseItem[]>([]);
     const [reference, setReference] = useState('');
     const [showNewProductForm, setShowNewProductForm] = useState(false);
@@ -584,6 +586,7 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({
             addProduct={addProduct}
             t={t}
             storeId={storeId}
+            language={language}
         />
       )}
       <div className="space-y-6">
