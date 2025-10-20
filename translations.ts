@@ -249,6 +249,7 @@ export const translations = {
     debt: 'Dette',
     manageDebt: 'Gérer la dette',
     printDebtReport: 'Imprimer le rapport de dette',
+    // FIX: Corrected wrong language value for 'history' key.
     history: 'Historique',
     noCustomersAdded: 'Aucun client ajouté.',
     debtManagement: 'Gestion de la dette',
@@ -279,7 +280,6 @@ export const translations = {
     purchaseHistory: 'Historique des achats',
     managePayments: 'Gérer les paiements',
     noSuppliersAdded: 'Aucun fournisseur ajouté.',
-    purchaseHistoryFor: 'Historique d\'achat pour {name}',
     noPurchasesYet: 'Aucun achat pour ce fournisseur.',
     purchaseDate: 'Date d\'achat',
     remainingDebt: 'Dette restante',
@@ -288,7 +288,6 @@ export const translations = {
     addProductsToPurchase: 'Ajouter des produits à l\'achat',
     selectProducts: 'Sélectionner des produits existants',
     orAddNewProductPrompt: 'Ou créer un nouveau produit pour ce fournisseur ?',
-    addNewProductButton: 'Ajouter un nouveau produit',
     saveAndAddToList: 'Enregistrer et ajouter à la liste',
     noProductsInPurchase: 'Aucun produit dans cet achat.',
     cash: 'Espèces',
@@ -301,7 +300,7 @@ export const translations = {
     supplierDeletedSuccess: 'Fournisseur {name} supprimé avec succès.',
     supplierDeleteError: 'Impossible de supprimer {name} car il y a une dette impayée.',
     supplierDeleteErrorHasDebt: 'Impossible de supprimer {name}. Il y a une dette de {debt} DH envers ce fournisseur.',
-
+    
     // Categories
     addNewCategory: 'Ajouter une nouvelle catégorie',
     categoryName: 'Nom de la catégorie',
@@ -426,7 +425,6 @@ export const translations = {
     activeOnCreation: 'Actif à la création',
     inactiveOnCreation: 'Inactif à la création',
     confirmPermanentActivation: 'L\'essai pour "{storeName}" a expiré. L\'activation lui accordera une licence permanente. Confirmer ?',
-    // FIX: Add missing translation key
     noStoresAdded: 'Aucun magasin ajouté pour le moment.',
 
   },
@@ -687,7 +685,6 @@ export const translations = {
     amountToPay: 'المبلغ المراد دفعه',
     recordPayment: 'تسجيل الدفع',
     paying: 'جاري الدفع...',
-    purchaseHistoryFor: 'سجل مشتريات {name}',
     totalPurchases: 'إجمالي المشتريات',
     currentDebt: 'الدين الحالي',
     printReport: 'طباعة التقرير',
@@ -719,7 +716,6 @@ export const translations = {
     addProductsToPurchase: 'إضافة منتجات للشراء',
     selectProducts: 'اختر منتجات موجودة',
     orAddNewProductPrompt: 'أو إنشاء منتج جديد لهذا المورد؟',
-    addNewProductButton: 'إضافة منتج جديد',
     saveAndAddToList: 'حفظ وإضافة إلى القائمة',
     noProductsInPurchase: 'لا توجد منتجات في هذا الشراء.',
     cash: 'نقدًا',
@@ -857,7 +853,6 @@ export const translations = {
     activeOnCreation: 'نشط عند الإنشاء',
     inactiveOnCreation: 'غير نشط عند الإنشاء',
     confirmPermanentActivation: 'انتهت الفترة التجريبية للمتجر "{storeName}". سيمنحه التفعيل ترخيصًا دائمًا. تأكيد؟',
-    // FIX: Add missing translation key
     noStoresAdded: 'لم تتم إضافة أي متاجر بعد.',
   }
 };
