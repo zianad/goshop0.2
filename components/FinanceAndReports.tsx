@@ -22,7 +22,6 @@ interface FinanceAndReportsProps {
   returns: Return[];
   customers: Customer[];
   users: User[];
-  addProduct: (product: Omit<Product, 'id'>, variants: (Omit<ProductVariant, 'id'|'productId'|'storeId'> & { stockQuantity?: number })[]) => Promise<{ product: Product, variants: ProductVariant[] }>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<Expense | undefined>;
   updateExpense: (expense: Expense) => Promise<void>;
   deleteExpense: (expenseId: string) => Promise<void>;
