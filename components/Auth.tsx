@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { DeveloperLogo } from './DeveloperLogo.tsx';
 import { translations } from '../translations.ts';
@@ -12,8 +10,10 @@ type Theme = 'light' | 'dark';
 type TFunction = (key: keyof typeof translations.fr, options?: { [key: string]: string | number }) => string;
 
 interface AuthProps {
+  store: Store;
   onLoginSuccess: (user: User, store: Store) => void;
   onSuperAdminLogin: () => void;
+  onBack: () => void;
   t: TFunction;
   language: Language;
   setLanguage: (lang: Language) => void;
@@ -23,94 +23,61 @@ interface AuthProps {
 
 const SUPER_ADMIN_PIN = 'Abzn11241984';
 
-type AuthStep = 'loading' | 'license_entry' | 'expired_trial' | 'login';
+type AuthStep = 'loading' | 'expired_trial' | 'login';
 
-const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onSuperAdminLogin, t, language, setLanguage, theme, toggleTheme }) => {
+const Auth: React.FC<AuthProps> = ({ store, onLoginSuccess, onSuperAdminLogin, onBack, t, language, setLanguage, theme, toggleTheme }) => {
     const [step, setStep] = useState<AuthStep>('loading');
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     
-    const [licensedStore, setLicensedStore] = useState<Store | null>(null);
     const [loginSecret, setLoginSecret] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [activationCode, setActivationCode] = useState('');
-    const [licenseKey, setLicenseKey] = useState('');
 
-    const checkStoreOnMount = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const storedLicense = localStorage.getItem('pos-license');
-            if (!storedLicense) {
-                setStep('license_entry');
-                return;
-            }
-
-            // Existing user: validate store from local storage
-            const localLicenseData: { storeId: string } = JSON.parse(storedLicense);
-            const freshStoreData = await api.getStoreById(localLicenseData.storeId);
-            
-            if (freshStoreData) {
-                // Check for trial expiration
-                if (freshStoreData.trialStartDate) {
-                    const trialStart = new Date(freshStoreData.trialStartDate);
-                    const expiryDate = new Date(trialStart);
-                    expiryDate.setDate(trialStart.getDate() + (freshStoreData.trialDurationDays ?? 7));
-                    if (new Date() > expiryDate) {
-                        setLicensedStore(freshStoreData);
-                        setStep('expired_trial'); // Trial has ended, show activation screen
-                    } else {
-                        setLicensedStore(freshStoreData);
-                        setStep('login'); // Trial is active
-                    }
-                } else {
-                    setLicensedStore(freshStoreData);
-                    setStep('login'); // Permanently activated
-                }
-            } else {
-                 throw new Error('Store not found');
-            }
-
-        } catch (e: any) {
-            localStorage.removeItem('pos-license');
-            setError(t((e.message || 'unknownError') as keyof typeof translations.fr) || e.message);
-            setStep('license_entry');
-        } finally {
-            setIsLoading(false);
+    const checkStoreStatus = useCallback(() => {
+        if (!store) {
+            onBack();
+            return;
         }
-    }, [t]);
+
+        // Check for trial expiration
+        if (store.isActive && store.trialStartDate) {
+            const trialStart = new Date(store.trialStartDate);
+            const expiryDate = new Date(trialStart);
+            expiryDate.setDate(trialStart.getDate() + (store.trialDurationDays ?? 7));
+            if (new Date() > expiryDate) {
+                setStep('expired_trial'); // Trial has ended, show activation screen
+            } else {
+                setStep('login'); // Trial is active
+            }
+        } else if (store.isActive) {
+            setStep('login'); // Permanently activated or trial days = 0
+        } else {
+            // Not active and no trial start probably means needs activation code.
+            setStep('expired_trial');
+        }
+    }, [store, onBack]);
 
     useEffect(() => {
-        if(step === 'loading') {
-            checkStoreOnMount();
-        }
-    }, [checkStoreOnMount, step]);
+        checkStoreStatus();
+    }, [checkStoreStatus]);
     
     useEffect(() => {
-        if (step === 'login' && licensedStore) {
-            const rememberedSecret = localStorage.getItem(`pos-remembered-secret-${licensedStore.id}`);
-            if (rememberedSecret) {
-                setLoginSecret(rememberedSecret);
-                setRememberMe(true);
-            } else {
-                setLoginSecret('');
-                setRememberMe(false);
-            }
+        const rememberedSecret = localStorage.getItem(`pos-remembered-secret-${store.id}`);
+        if (rememberedSecret) {
+            setLoginSecret(rememberedSecret);
+            setRememberMe(true);
         }
-    }, [step, licensedStore]);
+    }, [store.id]);
 
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
-        if (!licensedStore) {
-            setError(t('unknownError'));
-            setStep('license_entry');
-            return;
-        }
-
         setIsLoading(true);
+
         if (!loginSecret) {
-            setError(t('fillAllFields'));
+            setError(t('fillAllFieldsError'));
             setIsLoading(false);
             return;
         }
@@ -121,35 +88,16 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onSuperAdminLogin, t, langu
                 return;
             }
 
-            const result = await api.login(licensedStore, loginSecret);
+            const result = await api.login(store, loginSecret);
             if(rememberMe) {
-                localStorage.setItem(`pos-remembered-secret-${licensedStore.id}`, loginSecret);
+                localStorage.setItem(`pos-remembered-secret-${store.id}`, loginSecret);
             } else {
-                localStorage.removeItem(`pos-remembered-secret-${licensedStore.id}`);
+                localStorage.removeItem(`pos-remembered-secret-${store.id}`);
             }
             onLoginSuccess(result.user, result.store);
         } catch(err: any) {
-            let errorMessageKey: keyof typeof translations.fr | null = null;
-            let fallbackMessage = t('unknownError');
-
-            if (err && err.message) {
-                const lowerCaseMessage = err.message.toLowerCase();
-                
-                // Check for specific API key / auth errors from Supabase
-                if (lowerCaseMessage.includes('invalid api key') || lowerCaseMessage.includes('unauthorized')) {
-                    errorMessageKey = 'invalidApiKeyError';
-                }
-                // Check for custom errors thrown from api.ts
-                else if (err.message === 'storeNotFound' || err.message === 'storeDisabledError' || err.message === 'invalidCredentialsError') {
-                    errorMessageKey = err.message as keyof typeof translations.fr;
-                }
-                
-                // If it's not a known error, use the raw message as fallback
-                fallbackMessage = err.message;
-            }
-
-            // Use the translated message if a key was found, otherwise use the fallback
-            setError(errorMessageKey ? t(errorMessageKey) : fallbackMessage);
+            const errorMessage = t((err.message || 'unknownError') as keyof typeof translations.fr) || err.message;
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -157,12 +105,11 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onSuperAdminLogin, t, langu
     
     const handleActivateWithCode = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!licensedStore) return;
         setIsLoading(true);
         setError(null);
     
         try {
-            const success = await api.verifyAndActivateStoreWithCode(licensedStore.id, activationCode);
+            const success = await api.verifyAndActivateStoreWithCode(store.id, activationCode);
             if (success) {
                 alert(t('activationSuccessReload'));
                 window.location.reload();
@@ -170,59 +117,8 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onSuperAdminLogin, t, langu
                 throw new Error('invalidActivationCode');
             }
         } catch (err: any) {
-            const errorMessage = t(err.message as keyof typeof translations.fr) || err.message;
+            const errorMessage = t((err.message || 'unknownError') as keyof typeof translations.fr) || err.message;
             setError(errorMessage);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    
-    const handleLicenseSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError(null);
-        setIsLoading(true);
-        const trimmedLicenseKey = licenseKey.trim();
-        if (!trimmedLicenseKey) {
-            setError(t('fillAllFields'));
-            setIsLoading(false);
-            return;
-        }
-
-        try {
-            if (trimmedLicenseKey === SUPER_ADMIN_PIN) {
-                onSuperAdminLogin();
-                return;
-            }
-
-            const store = await api.getStoreByLicenseKey(trimmedLicenseKey);
-            if (store) {
-                const licenseInfoToStore = { storeId: store.id };
-                localStorage.setItem('pos-license', JSON.stringify(licenseInfoToStore));
-                setLicensedStore(store);
-                if (store.trialStartDate) {
-                     const trialStart = new Date(store.trialStartDate);
-                     const expiryDate = new Date(trialStart);
-                     expiryDate.setDate(trialStart.getDate() + (store.trialDurationDays ?? 7));
-                     if (new Date() > expiryDate) {
-                         setStep('expired_trial');
-                     } else {
-                         setStep('login');
-                     }
-                } else {
-                     setStep('login');
-                }
-            } else {
-                setError(t('invalidActivationCode'));
-            }
-        } catch (err: any) {
-            console.error("Error activating store for the first time:", err);
-            // The 406 error from Supabase during activation due to RLS policies is not a user-fixable error.
-            // Show a user-friendly message that prompts them to check the key.
-            if (err.message?.includes('406')) {
-                 setError(t('invalidActivationCode'));
-            } else {
-                setError(t('unknownError'));
-            }
         } finally {
             setIsLoading(false);
         }
@@ -231,42 +127,37 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onSuperAdminLogin, t, langu
     const renderLoginForm = () => (
         <form onSubmit={handleLogin} className="space-y-4">
             <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">{t('login')}</h2>
-            {licensedStore ? (
-                <>
-                    <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{t('forStore')}{licensedStore.name}</p>
-                    
-                    <div>
-                        <label htmlFor="loginSecret" className="sr-only">{t('passwordOrPin')}</label>
-                        <input 
-                          id="loginSecret" 
-                          type="password" 
-                          value={loginSecret} 
-                          onChange={e => setLoginSecret(e.target.value)} 
-                          placeholder={t('passwordOrPin')} 
-                          className="w-full px-4 py-3 border rounded-lg text-center text-xl tracking-widest bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" 
-                          required 
-                          autoFocus
-                        />
-                    </div>
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{t('forStore')} {store.name}</p>
+            
+            <div>
+                <label htmlFor="loginSecret" className="sr-only">{t('passwordOrPin')}</label>
+                <input 
+                  id="loginSecret" 
+                  type="password" 
+                  value={loginSecret} 
+                  onChange={e => setLoginSecret(e.target.value)} 
+                  placeholder={t('passwordOrPin')} 
+                  className="w-full px-4 py-3 border rounded-lg text-center text-xl tracking-widest bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" 
+                  required 
+                  autoFocus
+                />
+            </div>
 
-                    <div className="flex items-center justify-start text-left rtl:text-right">
-                        <input 
-                            id="rememberMe" 
-                            type="checkbox" 
-                            checked={rememberMe}
-                            onChange={(e) => setRememberMe(e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 bg-gray-100 dark:bg-slate-600"
-                        />
-                        <label htmlFor="rememberMe" className="ml-2 rtl:mr-2 rtl:ml-0 block text-sm text-gray-700 dark:text-gray-400 cursor-pointer">
-                            {t('rememberPin')}
-                        </label>
-                    </div>
-                </>
-            ) : (
-                <p className="text-slate-500 dark:text-slate-400">{t('loading')}...</p>
-            )}
+            <div className="flex items-center justify-start text-left rtl:text-right">
+                <input 
+                    id="rememberMe" 
+                    type="checkbox" 
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 dark:border-slate-500 text-teal-600 focus:ring-teal-500 bg-gray-100 dark:bg-slate-600"
+                />
+                <label htmlFor="rememberMe" className="ml-2 rtl:mr-2 rtl:ml-0 block text-sm text-gray-700 dark:text-gray-400 cursor-pointer">
+                    {t('rememberPin')}
+                </label>
+            </div>
             
             <button type="submit" disabled={isLoading} className="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-700 disabled:bg-gray-400">{isLoading ? `${t('loading')}...` : t('login')}</button>
+            <button type="button" onClick={onBack} className="w-full text-sm text-slate-500 dark:text-slate-400 hover:underline mt-2">{t('backToPortal')}</button>
         </form>
     );
 
@@ -288,43 +179,21 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onSuperAdminLogin, t, langu
                 />
             </div>
             <button type="submit" disabled={isLoading} className="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{isLoading ? `${t('loading')}...` : t('activateApplication')}</button>
-        </form>
-    );
-
-    const renderLicenseForm = () => (
-        <form onSubmit={handleLicenseSubmit} className="space-y-4">
-            <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">{t('activateYourCompany')}</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{t('enterLicenseKey')}</p>
-            <div>
-                <label htmlFor="licenseKey" className="sr-only">{t('licenseKey')}</label>
-                <input 
-                  id="licenseKey" 
-                  type="text" 
-                  value={licenseKey} 
-                  onChange={e => setLicenseKey(e.target.value)} 
-                  placeholder={t('licenseKey')} 
-                  className="w-full px-4 py-3 border rounded-lg text-center bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" 
-                  required 
-                  autoFocus
-                />
-            </div>
-            <button type="submit" disabled={isLoading} className="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-700 disabled:bg-gray-400">{isLoading ? `${t('loading')}...` : t('activate')}</button>
+            <button type="button" onClick={onBack} className="w-full text-sm text-slate-500 dark:text-slate-400 hover:underline mt-2">{t('backToPortal')}</button>
         </form>
     );
 
     const renderContent = () => {
-        if (isLoading || step === 'loading') {
+        if (step === 'loading') {
             return <p className="text-slate-500 dark:text-slate-400">{t('loading')}...</p>;
         }
         switch (step) {
-            case 'license_entry':
-                return renderLicenseForm();
             case 'login':
                 return renderLoginForm();
             case 'expired_trial':
                 return renderExpiredTrialForm();
             default:
-                 return <button onClick={() => setStep('loading')} className="text-teal-600 hover:underline">{t('reactivationSuccess')}</button>;
+                 return <p className="text-red-500">{t('unknownError')}</p>;
         }
     };
 
@@ -340,7 +209,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, onSuperAdminLogin, t, langu
             </div>
             <div className="text-center mb-8">
                 <DeveloperLogo className="w-80 h-auto mx-auto" />
-                <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                 <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                     <p>by Eventhorizon solution</p>
                     <p>0622119357</p>
                 </div>
