@@ -55,6 +55,7 @@ export const translations = {
     fillNameAndPriceError: 'Le nom et le prix du produit/service sont obligatoires.',
     sellingPriceMustBeHigherError: 'Le prix de vente doit être supérieur au prix d\'achat.',
     failedToFetchError_CORS: 'Impossible de se connecter au serveur. Vérifiez votre connexion Internet ou la configuration CORS du serveur.',
+    or: 'OU',
 
     // ProductManagement
     addStockFor: 'Ajouter du stock pour {name}',
@@ -318,6 +319,10 @@ export const translations = {
     storeDisabledError: 'Ce magasin est actuellement désactivé.',
     storeNotFound: 'Magasin non trouvé.',
     invalidActivationCode: 'Code d\'activation invalide.',
+    selectStoreFromList: 'Sélectionner le magasin dans la liste',
+    selectYourStore: 'Sélectionnez votre magasin',
+    backToLicenseEntry: 'Retourner à la saisie de licence',
+
 
     // TrialBanner
     trialDaysRemaining: 'Votre version d\'essai se termine dans {days} jours.',
