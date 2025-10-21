@@ -10,8 +10,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // ٢. انسخ "رابط المشروع" (Project URL) وألصقه في السطر التالي بدلاً من "VOTRE_URL_SUPABASE_ICI".
 // ٣. انسخ مفتاح "anon" العام (Project API Keys -> anon public) وألصقه في السطر التالي بدلاً من "VOTRE_CLÉ_ANON_SUPABASE_ICI".
 
-const supabaseUrl: string = "VOTRE_URL_SUPABASE_ICI";
-const supabaseAnonKey: string = "VOTRE_CLÉ_ANON_SUPABASE_ICI";
+const supabaseUrl: string = "https://kclntdmvpeykknjnndeb.supabase.co";
+const supabaseAnonKey: string = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjbG50ZG12cGV5a2tuam5uZGViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1OTk0MjEsImV4cCI6MjA3NTE3NTQyMX0.O49_JCNUZxPlp6EAqbZHUpJWYJGFBl63QsnmBICyphI";
 
 
 /**
