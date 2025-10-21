@@ -111,7 +111,7 @@ const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ sale, mode, onClose
             <div className="text-xs mb-4">
                 <p><strong>{t('billNumber')}</strong> {sale.id.slice(-8).toUpperCase()}</p>
                 <p><strong>{t('date')}:</strong> {new Date(sale.date).toLocaleString(locale)}</p>
-                {customer && <p><strong>{t('customer')}:</strong> {customer.name}</p>}
+                {customer && <p><strong>{t('customers')}:</strong> {customer.name}</p>}
             </div>
             <table className="w-full text-sm mb-4 border-collapse">
                 <thead>

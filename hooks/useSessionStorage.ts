@@ -15,7 +15,6 @@ function getValue<T>(key: string, initialValue: T | (() => T)) {
   return initialValue;
 }
 
-// FIX: Correctly type the return value using Dispatch and SetStateAction from react imports
 export function useSessionStorage<T>(key: string, initialValue: T | (() => T)): [T, Dispatch<SetStateAction<T>>] {
   const [value, setValue] = useState<T>(() => {
     return getValue(key, initialValue);

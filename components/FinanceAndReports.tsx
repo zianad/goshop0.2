@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import type { Expense, Sale, Product, ProductVariant, CartItem, Return, Customer, Purchase, Supplier, User } from '../types.ts';
@@ -85,8 +79,7 @@ const CustomItemsModal: React.FC<{
                           <details className="mt-2 text-sm">
                             <summary className="cursor-pointer text-cyan-700 dark:text-cyan-400 font-semibold hover:text-cyan-800">{t('viewDetails')}</summary>
                             <div className="mt-2 space-y-3 pr-4 rtl:pl-4 rtl:pr-0 border-r-2 rtl:border-l-2 rtl:border-r-0 border-cyan-200 dark:border-cyan-500/30 text-slate-600 dark:text-slate-300">
-                                <p><strong>{t('customer')}:</strong> {customers.find(c => c.id === sale.customerId)?.name || t('cashCustomer')}</p>
-                                {/* FIX: Use 'customItemsInSale' key for the translation, as it is a valid key. */}
+                                <p><strong>{t('customers')}:</strong> {customers.find(c => c.id === sale.customerId)?.name || t('cashCustomer')}</p>
                                 <p className="font-semibold">{t('customItemsInSale')}:</p>
                                 <ul className="mt-2 space-y-1 pt-2 border-t border-dashed dark:border-slate-600">
                                     {sale.items.filter(i => i.isCustom).map(item => (
@@ -142,7 +135,6 @@ const EditExpenseModal: React.FC<{
     return (
         <div className="fixed inset-0 bg-slate-800 bg-opacity-75 flex justify-center items-center z-50 p-4">
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-md w-full p-6">
-                {/* FIX: Use 'manageExpenses' key for the translation, as 'expenses' is not a valid key. */}
                 <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-4">{t('edit')} {t('manageExpenses')}</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
@@ -172,7 +164,6 @@ const EditExpenseModal: React.FC<{
                     <div className="flex justify-end gap-3 mt-6">
                         <button type="button" onClick={onClose} className="bg-gray-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500">{t('cancel')}</button>
                         <button type="submit" disabled={isSaving} className="bg-teal-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-700 disabled:bg-gray-400">
-                            {/* FIX: Use template literal for 'saving' state, as 'saving' is not a valid translation key. */}
                             {isSaving ? `${t('saving')}...` : t('save')}
                         </button>
                     </div>
@@ -184,7 +175,6 @@ const EditExpenseModal: React.FC<{
 
 const SALES_HISTORY_PAGE_SIZE = 10;
 
-// FIX: Added return statement and JSX for the component UI.
 const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, expenses, purchases, suppliers, returns, customers, users, addExpense, updateExpense, deleteExpense, deleteReturn, deleteAllReturns, t, language, theme, onReprintInvoice }) => {
   const [dateRange, setDateRange] = useState('all');
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
@@ -329,7 +319,6 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
         if(data[day] < 0) data[day] = 0; // Prevent negative bars
     });
 
-    // FIX: Use 'sales' key for the translation, as it is a valid key.
     return Object.entries(data).map(([name, total]) => ({ name, [t('sales')]: total })).reverse();
   }, [filteredSales, filteredReturns, locale, t]);
 
@@ -445,7 +434,6 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
                 <div className="lg:col-span-2">
                      <div className="flex justify-between items-center mb-3">
                         <h3 className="font-bold text-lg text-slate-600 dark:text-slate-300">{t('expenseHistory')}</h3>
-                        {/* FIX: Use 'exportToPdf' key for the translation, as it is a valid key. */}
                         <button onClick={handleExport} className="bg-cyan-600 text-white font-semibold py-1 px-3 rounded-lg hover:bg-cyan-700 transition-colors flex items-center gap-2 text-xs">
                             <FileDownIcon className="w-4 h-4"/> {t('exportToPdf')}
                         </button>
@@ -476,7 +464,6 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">{t('debtorCustomers')}</h2>
              <div className="flex items-center gap-4">
-                {/* FIX: Use 'exportToPdf' key for the translation, as it is a valid key. */}
                 <button onClick={() => {
                     const headers = [t('name'), t('phone'), t('debtAmount')];
                     const data = debtsByCustomer.map(d => [d.customer.name, d.customer.phone, `${d.debt.toFixed(2)} DH`]);
@@ -523,7 +510,6 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
             <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">{t('returnHistory')}</h2>
             <div className="flex items-center gap-4 flex-wrap">
-                {/* FIX: Use 'exportToPdf' key for the translation, as it is a valid key. */}
                 <button onClick={() => {
                     const headers = [t('returnId'), t('date'), t('refundAmount'), t('profitLost'), t('itemsLabel')];
                     const data = filteredReturns.map(r => [
@@ -590,7 +576,6 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
       <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
         <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">{t('allPurchasesHistory')}</h2>
         <div className="flex items-center gap-4">
-          {/* FIX: Use 'exportToPdf' key for the translation, as it is a valid key. */}
           <button onClick={() => {
               const headers = [t('date'), t('suppliers'), t('reference'), t('totalAmount'), t('amountPaid'), t('remainingAmountLabel'), t('paymentMethod')];
               const data = filteredPurchases.map(p => [
@@ -853,12 +838,12 @@ const FinanceAndReports: React.FC<FinanceAndReportsProps> = ({ storeId, sales, e
        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
         <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-4">{t('salesHistory')}</h2>
          <div className="overflow-x-auto max-h-[60vh]">
-            <table className="w-full text-sm text-right rtl:text-right text-slate-500 dark:text-slate-400">
+            <table className="w-full text-sm text-right rtl:text-left text-slate-500 dark:text-slate-400">
                 <thead className="text-xs text-slate-600 dark:text-slate-300 uppercase bg-gray-50 dark:bg-slate-700 sticky top-0">
                     <tr>
                       <th scope="col" className="px-6 py-3">{t('billNumber')}</th>
                       <th scope="col" className="px-6 py-3">{t('date')}</th>
-                      <th scope="col" className="px-6 py-3">{t('customer')}</th>
+                      <th scope="col" className="px-6 py-3">{t('customers')}</th>
                       <th scope="col" className="px-6 py-3">{t('total')}</th>
                       <th scope="col" className="px-6 py-3">{t('downPayment')}</th>
                       <th scope="col" className="px-6 py-3">{t('remainingAmountLabel')}</th>

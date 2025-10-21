@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { Product, ProductVariant, Supplier, Category, VariantFormData } from '../types';
 import { TrashIcon, FileDownIcon, PlusIcon, EditIcon, ChevronDownIcon, SearchIcon, BarcodeIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons';
 import { exportToPdf } from '../utils/helpers';
-// FIX: Changed import path to be explicit for module resolution.
 import { translations } from '../translations';
 import { PrintableBarcode } from './PrintableBarcode';
 
@@ -64,7 +63,6 @@ const AddStockModal: React.FC<{
         <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-4">{t('addStockFor', { name: product.name })}</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            {/* FIX: Use 'selectVariant' key for the translation, as 'variant' is not a valid key. */}
             <label htmlFor="variant" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('selectVariant')}</label>
             <select
               id="variant"
@@ -346,9 +344,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ storeId, products
         t('purchasePrice'),
         t('stock'),
         t('barcode'),
-        // FIX: Use 'categories' key for the translation, as 'category' is not a valid key.
         t('categories'),
-        // FIX: Use 'suppliers' key for the translation, as 'supplier' is not a valid key.
         t('suppliers'),
     ];
 
@@ -522,7 +518,6 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ storeId, products
                             <input type="text" value={productName} onChange={e => setProductName(e.target.value)} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600" placeholder={t('productNamePlaceholder')} required />
                         </div>
                         <div>
-                            {/* FIX: Use 'categories' key for the translation, as 'category' is not a valid key. */}
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('categories')}</label>
                             <select value={productCategoryId} onChange={e => setProductCategoryId(e.target.value)} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600">
                                 <option value="">{t('selectCategory')}</option>
@@ -530,7 +525,6 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ storeId, products
                             </select>
                         </div>
                          <div>
-                            {/* FIX: Use 'suppliers' key for the translation, as 'supplier' is not a valid key. */}
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('suppliers')}</label>
                             <select value={productSupplierId} onChange={e => setProductSupplierId(e.target.value)} className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-slate-100 dark:border-slate-600">
                                 <option value="">{t('selectSupplier')}</option>
@@ -553,7 +547,6 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ storeId, products
                             <button type="button" onClick={() => removeVariant(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700"><TrashIcon className="w-5 h-5"/></button>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                <div className="flex flex-col items-center justify-center p-2">
-                                    {/* FIX: Use 'variants' key for the translation, as 'variant' is not a valid key. */}
                                     <img src={variant.image || `https://via.placeholder.com/150/f1f5f9/64748b?text=${encodeURIComponent(t('variants'))}`} alt="variant" className="w-24 h-24 object-cover rounded-lg mb-2 bg-gray-200" />
                                     <input type="file" accept="image/*" onChange={e => handleVariantImageChange(index, e)} className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 dark:file:bg-purple-900/50 dark:file:text-purple-300 dark:hover:file:bg-purple-900" />
                                 </div>

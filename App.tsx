@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, Return, StockBatch, CartItem, VariantFormData, PurchaseItem, Tab as TabType } from './types';
 import { Tab } from './types';
@@ -11,7 +7,6 @@ import SuperAdminDashboard from './components/SuperAdminDashboard';
 import PointOfSale from './components/PointOfSale';
 import ProductManagement from './components/ProductManagement';
 import ServiceManagement from './components/ServiceManagement';
-// FIX: Changed to a default import as 'FinanceAndReports' is now exported as default.
 import FinanceAndReports from './components/FinanceAndReports';
 import CustomerManagement from './components/CustomerManagement';
 import SupplierManagement from './components/SupplierManagement';
@@ -299,13 +294,11 @@ const App: React.FC = () => {
         setStore(updatedStore); // also update session store
     };
     
-// FIX: Define deleteReturn function to handle API call and local DB update.
     const deleteReturn = async (id: string) => {
         await api.deleteReturn(id);
         await removeReturnDB(id);
     };
 
-// FIX: Define deleteAllReturns function to iterate and delete all returns.
     const deleteAllReturns = async () => {
         if(window.confirm("Sure?")) {
             const returnsToDelete = [...returns];
@@ -348,7 +341,6 @@ const App: React.FC = () => {
         }
     };
     
-    // FIX: Create wrapper functions to adapt `addProduct` and `updateProduct` for the `ServiceManagement` component.
     const handleAddService = (serviceData: Omit<Product, 'id'>) => {
         // Services are products without variants.
         return addProduct(serviceData, []);
@@ -420,7 +412,6 @@ const App: React.FC = () => {
                     {activeTab === Tab.POS && <PointOfSale store={store} user={user} products={products} variants={variants} customers={customers} categories={categories} sales={sales} stockMap={stockMap} variantMap={variantMap} variantsByProduct={variantsByProduct} barcodeMap={barcodeMap} cart={cart} setCart={setCart} completeSale={completeSale} processReturn={processReturn} payCustomerDebt={payCustomerDebt} t={t} language={language} />}
                     {activeTab === Tab.Products && <ProductManagement storeId={store.id} products={products.filter(p=>p.type === 'good')} variants={variants} suppliers={suppliers} categories={categories} stockMap={stockMap} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} addStockToVariant={addStockToVariant} t={t} language={language} />}
                     {activeTab === Tab.Services && <ServiceManagement storeId={store.id} services={products.filter(p=>p.type==='service')} addService={handleAddService} updateService={handleUpdateService} deleteService={deleteProduct} t={t} />}
-                    {/* FIX: Pass the newly defined deleteReturn and deleteAllReturns functions as props. */}
                     {activeTab === Tab.Finance && <FinanceAndReports storeId={store.id} sales={sales} expenses={expenses} purchases={purchases} suppliers={suppliers} returns={returns} customers={customers} users={users} addProduct={addProduct} addExpense={addExpense} updateExpense={updateExpense} deleteExpense={deleteExpense} deleteReturn={deleteReturn} deleteAllReturns={deleteAllReturns} onReprintInvoice={(sale) => setSaleToPrint({sale, mode: 'invoice'})} t={t} language={language} theme={theme} />}
                     {activeTab === Tab.Customers && <CustomerManagement storeId={store.id} customers={customers} sales={sales} addCustomer={addCustomer} deleteCustomer={deleteCustomer} payCustomerDebt={payCustomerDebt} t={t} language={language} />}
                     {activeTab === Tab.Suppliers && <SupplierManagement storeId={store.id} suppliers={suppliers} purchases={purchases} products={products} variants={variants} addSupplier={addSupplier} deleteSupplier={deleteSupplier} addPurchase={addPurchase} paySupplierDebt={paySupplierDebt} addProduct={addProduct} t={t} language={language} />}

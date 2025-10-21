@@ -1,13 +1,17 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// L'URL de votre projet Supabase. Vous la trouverez dans le tableau de bord de votre projet Supabase -> Paramètres du projet -> API.
-const supabaseUrl: string = "https://kclntdmvpeykknjnndeb.supabase.co";
+// INSTRUCTIONS (FR):
+// 1. Allez sur votre tableau de bord Supabase: https://supabase.com/dashboard/project/_/settings/api
+// 2. Copiez l'URL de votre projet (Project URL) et collez-la ci-dessous à la place de "VOTRE_URL_SUPABASE_ICI".
+// 3. Copiez votre clé API "anon" publique (Project API Keys -> anon public) et collez-la ci-dessous à la place de "VOTRE_CLÉ_ANON_SUPABASE_ICI".
 
-// --- IMPORTANT : AJOUTEZ VOTRE CLÉ API ICI ---
-// Remplacez la chaîne de caractères ci-dessous par votre clé 'anon' publique Supabase (PAS la clé 'publishable').
-// Vous pouvez la trouver dans le tableau de bord de votre projet Supabase -> Paramètres du projet -> API.
-// La clé est une longue chaîne de caractères qui commence par "eyJ...".
-const supabaseAnonKey: string = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjbG50ZG12cGV5a2tqbm5uZGViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDY4NzM3MTIsImV4cCI6MjAyMjQ0OTcxMn0.55I4S0y3i1-3bcz_rt5h9AY0a8fad23t_u_4nYp-Pek";
+// INSTRUCTIONS (AR):
+// ١. اذهب إلى لوحة تحكم مشروعك على Supabase: https://supabase.com/dashboard/project/_/settings/api
+// ٢. انسخ "رابط المشروع" (Project URL) وألصقه في السطر التالي بدلاً من "VOTRE_URL_SUPABASE_ICI".
+// ٣. انسخ مفتاح "anon" العام (Project API Keys -> anon public) وألصقه في السطر التالي بدلاً من "VOTRE_CLÉ_ANON_SUPABASE_ICI".
+
+const supabaseUrl: string = "VOTRE_URL_SUPABASE_ICI";
+const supabaseAnonKey: string = "VOTRE_CLÉ_ANON_SUPABASE_ICI";
 
 
 /**
@@ -16,9 +20,14 @@ const supabaseAnonKey: string = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi
  * @returns {boolean} True if credentials appear to be set, false otherwise.
  */
 export function areSupabaseCredentialsSet(): boolean {
-  // A Supabase anon key is a JWT and typically starts with "eyJ".
-  // The placeholder is intentionally not a valid key.
-  return !!(supabaseUrl && supabaseUrl.startsWith('http') && supabaseAnonKey && supabaseAnonKey.startsWith('eyJ'));
+  // A real Supabase anon key is a JWT and typically starts with "eyJ".
+  // The placeholder values will fail this check.
+  return !!(
+    supabaseUrl && 
+    supabaseUrl.startsWith('http') && 
+    supabaseAnonKey && 
+    supabaseAnonKey.startsWith('eyJ')
+  );
 }
 
 const initializeSupabase = (): SupabaseClient => {
@@ -28,7 +37,21 @@ const initializeSupabase = (): SupabaseClient => {
 
   // This block will execute if the credentials are not set correctly.
   // It provides a clear error in the console and a mock Supabase client to prevent crashes.
-  console.error("Supabase credentials are not set correctly in supabaseClient.ts! Please provide a valid URL and public anon key.");
+  const errorMessage = `
+  ********************************************************************************
+  * ERREUR DE CONFIGURATION SUPABASE :                                           *
+  * Les informations de connexion à Supabase ne sont pas configurées.            *
+  * Veuillez modifier le fichier 'supabaseClient.ts' et ajouter votre URL        *
+  * et votre clé 'anon' publique.                                                *
+  *                                                                              *
+  * خطأ في إعدادات SUPABASE:                                                       *
+  * بيانات الاتصال بـ Supabase غير مهيأة.                                          *
+  * الرجاء تعديل ملف 'supabaseClient.ts' وإضافة رابط المشروع ومفتاح 'anon' العام. *
+  ********************************************************************************
+  `;
+  console.error(errorMessage);
+  
+  // Return a mock client to prevent the app from crashing entirely.
   return new Proxy({}, {
     get: (target, prop) => {
       if (prop === 'channel') {

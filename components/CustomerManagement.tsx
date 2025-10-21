@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Customer, Sale } from '../types.ts';
 import { UsersIcon, FileDownIcon, TrashIcon, PrinterIcon, FileTextIcon, HistoryIcon, XIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons.tsx';
@@ -39,7 +40,7 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ customer, s
 
         // Customer Info & Summary
         doc.setFontSize(12);
-        doc.text(`${t('customer')}: ${customer.name}`, 14, 30);
+        doc.text(`${t('customers')}: ${customer.name}`, 14, 30);
         doc.text(`${t('phone')}: ${customer.phone}`, 14, 36);
         doc.text(`${t('totalPurchases')}: ${totalPurchases.toFixed(2)} DH`, 14, 42);
         doc.text(`${t('currentDebt')}: ${debt.toFixed(2)} DH`, 14, 48);
@@ -92,7 +93,7 @@ const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({ customer, s
         <div className="fixed inset-0 bg-slate-800 bg-opacity-75 flex justify-center items-center z-50 p-4">
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-4xl w-full p-6 max-h-[90vh] flex flex-col">
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">{t('history', { name: customer.name })}</h3>
+                    <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">{t('customerHistory', { name: customer.name })}</h3>
                     <button onClick={onClose} className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"><XIcon className="w-6 h-6"/></button>
                 </div>
 
@@ -379,7 +380,7 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ storeId, custom
                                         <td className="px-6 py-4 text-left rtl:text-right">
                                             <div className="flex items-center gap-2">
                                                 {debt > 0 && <button onClick={() => setDebtForCustomer(customer)} className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 text-xs font-bold py-1 px-3 rounded-full hover:bg-green-200">{t('manageDebt')}</button>}
-                                                <button onClick={() => setHistoryForCustomer(customer)} className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" title={t('history', {name: ''})}><HistoryIcon className="w-5 h-5"/></button>
+                                                <button onClick={() => setHistoryForCustomer(customer)} className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" title={t('customerHistory', {name: customer.name})}><HistoryIcon className="w-5 h-5"/></button>
                                                 <button onClick={() => handleDeleteCustomer(customer)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50" title={t('delete')}><TrashIcon className="w-5 h-5"/></button>
                                             </div>
                                         </td>

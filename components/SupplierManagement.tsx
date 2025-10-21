@@ -71,7 +71,7 @@ const PurchaseHistoryModal: React.FC<{
     return (
         <div className="fixed inset-0 bg-slate-800 bg-opacity-75 flex justify-center items-center z-50 p-4">
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-4xl w-full p-6 max-h-[90vh] flex flex-col">
-                 <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-4">{t('purchaseHistoryFor', { name: supplier.name })}</h3>
+                 <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-4">{t('supplierPurchaseHistoryFor', { name: supplier.name })}</h3>
                  <p className="text-center text-slate-500 py-16">Purchase history not fully implemented in this fix.</p>
                 <div className="flex justify-end gap-3 mt-auto pt-4 border-t dark:border-slate-700">
                      <button type="button" onClick={onClose} className="bg-gray-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-4 rounded-lg">{t('close')}</button>
@@ -290,7 +290,7 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({
                                             <div className="flex items-center gap-2">
                                                 <button onClick={() => setModal({ type: 'newPurchase', supplier })} className="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 text-xs font-bold py-1 px-3 rounded-full hover:bg-blue-200">{t('newPurchase')}</button>
                                                 {debt > 0 && <button onClick={() => setModal({ type: 'manageDebt', supplier })} className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 text-xs font-bold py-1 px-3 rounded-full hover:bg-green-200">{t('managePayments')}</button>}
-                                                <button onClick={() => setModal({ type: 'history', supplier })} className="text-slate-500 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100" title={t('history')}><HistoryIcon className="w-5 h-5"/></button>
+                                                <button onClick={() => setModal({ type: 'history', supplier })} className="text-slate-500 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100" title={t('purchaseHistory')}><HistoryIcon className="w-5 h-5"/></button>
                                                 <button onClick={() => handleDeleteSupplier(supplier)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100" title={t('delete')}><TrashIcon className="w-5 h-5"/></button>
                                             </div>
                                         </td>

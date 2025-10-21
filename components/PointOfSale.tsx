@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { Product, ProductVariant, CartItem, Customer, Category, Sale, User, Store } from '../types.ts';
 import { TrashIcon, BarcodeIcon, PlusIcon, SparklesIcon } from './Icons.tsx';
 import { translations } from '../translations.ts';
-// FIX: Use GoogleGenAI instead of the deprecated GoogleGenerativeAI
 import { GoogleGenAI, Type } from "@google/genai";
 
 // IMPORTANT: To enable AI receipt scanning, you must provide a Google Gemini API key.
@@ -233,6 +232,13 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
       setManualTotal('');
   }, [cart])
 
+  const clearCart = useCallback(() => {
+      setCart([]);
+      setDownPayment(0);
+      setManualTotal('');
+      setSelectedCustomerId(undefined);
+  }, [setCart]);
+
   const addVariantToCart = useCallback((variant: ProductVariant) => {
     const currentStock = stockMap.get(variant.id) || 0;
     if (!isReturnMode && currentStock <= 0) {
@@ -306,7 +312,6 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
       price,
       quantity,
       type: 'service', // Treat as a service to not affect stock
-      // FIX: Use 'services' key for the translation, as 'service' is not a valid key.
       image: `https://via.placeholder.com/150/e9d5ff/a855f7?text=${encodeURIComponent(t('services'))}`,
       isCustom: true,
     };
@@ -350,7 +355,6 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
             reader.readAsDataURL(file);
         });
         
-        // FIX: Use new GoogleGenAI class with named apiKey parameter
         const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
         const imagePart = {
@@ -364,7 +368,6 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
             text: "From the provided receipt image, extract all purchase line items. For each item, provide its name (designation), quantity (quantite), and its unit price (prixHT). Return as a JSON array.",
         };
 
-        // FIX: Use the new ai.models.generateContent API
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: { parts: [imagePart, textPart] },
@@ -394,7 +397,6 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
             },
         });
         
-        // FIX: Use response.text instead of deprecated response.text()
         const jsonResponse = JSON.parse(response.text);
 
         if (!Array.isArray(jsonResponse)) {
@@ -411,7 +413,6 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
                 price: item.prixHT,
                 quantity: item.quantite,
                 type: 'service',
-                // FIX: Use 'services' key for the translation, as 'service' is not a valid key.
                 image: `https://via.placeholder.com/150/e9d5ff/a855f7?text=${encodeURIComponent(t('services'))}`,
                 isCustom: true,
             };
@@ -542,13 +543,6 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
   const removeFromCart = (cartItemId: string) => {
     setCart(cart.filter(item => item.id !== cartItemId));
   };
-  
-  const clearCart = () => {
-      setCart([]);
-      setDownPayment(0);
-      setManualTotal('');
-      setSelectedCustomerId(undefined);
-  }
 
   const handleFinalizeAndPrint = async (mode: 'invoice' | 'orderForm') => {
     if (cart.length === 0) {
@@ -585,8 +579,7 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
   useEffect(() => {
     clearCart();
     setShowServices(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReturnMode])
+  }, [isReturnMode, clearCart])
 
   return (
     <>
@@ -788,7 +781,7 @@ const PointOfSale: React.FC<PointOfSaleProps> = ({
                 <div className="space-y-3">
                     {/* Customer Select */}
                     <div className="flex justify-between items-center">
-                    <label htmlFor="customer" className="font-semibold text-slate-600 dark:text-slate-300">{t('customer')}:</label>
+                    <label htmlFor="customer" className="font-semibold text-slate-600 dark:text-slate-300">{t('customers')}:</label>
                     <select id="customer" value={selectedCustomerId || ''} onChange={e => setSelectedCustomerId(e.target.value || undefined)} className="w-48 text-sm px-2 py-1 border rounded-md bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 dark:border-slate-600 focus:ring-teal-500">
                         <option value="">{t('cashCustomer')}</option>
                         {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}

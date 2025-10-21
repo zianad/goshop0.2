@@ -1,7 +1,4 @@
-
-
 import { supabase } from './supabaseClient';
-// FIX: Add 'PurchaseItem' to the type import to resolve a missing type error.
 import type { Store, User, Product, ProductVariant, Sale, Expense, Customer, Supplier, Category, Purchase, CartItem, Return, StockBatch, VariantFormData, PurchaseItem } from './types';
 
 // Helper to check for errors and throw them
@@ -318,7 +315,6 @@ export const addStock = async (data: { variantId: string; quantity: number; purc
     };
 
     const { data: purchase, error: purchaseError } = await supabase.from('purchases').insert(purchaseData).select().single();
-    // FIX: Fixed a copy-paste error in the context string.
     checkError(purchaseError, 'addStock (purchase)');
     if(!purchase) throw new Error("Purchase creation failed in addStock");
     
@@ -341,7 +337,6 @@ export const addStock = async (data: { variantId: string; quantity: number; purc
     return { purchase, newStockBatch, updatedVariant };
 };
 
-// FIX: Added missing addPurchase function
 export const addPurchase = async (purchaseData: Omit<Purchase, 'id'>): Promise<{newPurchase: Purchase, newStockBatches: StockBatch[]}> => {
     const { data: newPurchase, error: purchaseError } = await supabase.from('purchases').insert(purchaseData).select().single();
     checkError(purchaseError, 'addPurchase');
@@ -361,13 +356,11 @@ export const addPurchase = async (purchaseData: Omit<Purchase, 'id'>): Promise<{
     return { newPurchase, newStockBatches: newStockBatches || [] };
 }
 
-// FIX: Added missing updatePurchase function
 export const updatePurchase = (purchase: Purchase): Promise<void> => updateSingle<Purchase>('purchases', purchase);
 
 
 // --- Sales & Returns ---
 
-// FIX: Added missing completeSale function
 export const completeSale = async (cart: CartItem[], downPayment: number, customerId: string | undefined, finalTotal: number, userId: string, storeId: string): Promise<Sale> => {
     const profit = cart.reduce((acc, item) => {
         const purchasePrice = item.purchasePrice || 0;
@@ -388,7 +381,6 @@ export const completeSale = async (cart: CartItem[], downPayment: number, custom
     return addSingle<Sale>('sales', newSale);
 };
 
-// FIX: Added missing processReturn function
 export const processReturn = async (itemsToReturn: CartItem[], userId: string, storeId: string): Promise<Return> => {
     const refundAmount = itemsToReturn.reduce((acc, item) => acc + item.price * item.quantity, 0);
     const profitLost = itemsToReturn.reduce((acc, item) => {
@@ -407,10 +399,8 @@ export const processReturn = async (itemsToReturn: CartItem[], userId: string, s
     return addSingle<Return>('returns', newReturn);
 };
 
-// FIX: Add missing deleteReturn function
 export const deleteReturn = (id: string): Promise<void> => deleteSingle('returns', id);
 
-// FIX: Added missing payCustomerDebt function
 export const payCustomerDebt = async (customerId: string, amount: number, userId: string, storeId: string): Promise<Sale> => {
     const paymentSale: Omit<Sale, 'id'> = {
         storeId,
@@ -427,17 +417,12 @@ export const payCustomerDebt = async (customerId: string, amount: number, userId
 };
 
 // --- Expenses ---
-// FIX: Added missing addExpense function
 export const addExpense = (expense: Omit<Expense, 'id'>): Promise<Expense> => addSingle<Expense>('expenses', expense);
-// FIX: Added missing updateExpense function
 export const updateExpense = (expense: Expense): Promise<void> => updateSingle<Expense>('expenses', expense);
-// FIX: Added missing deleteExpense function
 export const deleteExpense = (id: string): Promise<void> => deleteSingle('expenses', id);
 
 // --- Customers ---
-// FIX: Added missing addCustomer function
 export const addCustomer = (customer: Omit<Customer, 'id'>): Promise<Customer> => addSingle<Customer>('customers', customer);
-// FIX: Added missing deleteCustomer function
 export const deleteCustomer = async (id: string): Promise<void> => {
     // Check for outstanding debt before deleting
     const { data: sales, error } = await supabase.from('sales').select('remainingAmount').eq('customerId', id);
@@ -450,9 +435,7 @@ export const deleteCustomer = async (id: string): Promise<void> => {
 };
 
 // --- Suppliers ---
-// FIX: Added missing addSupplier function
 export const addSupplier = (supplier: Omit<Supplier, 'id'>): Promise<Supplier> => addSingle<Supplier>('suppliers', supplier);
-// FIX: Added missing deleteSupplier function
 export const deleteSupplier = async (id: string): Promise<void> => {
     const { data: purchases, error } = await supabase.from('purchases').select('remainingAmount').eq('supplierId', id);
     checkError(error, 'deleteSupplier (check debt)');
@@ -464,17 +447,11 @@ export const deleteSupplier = async (id: string): Promise<void> => {
 };
 
 // --- Categories ---
-// FIX: Added missing addCategory function
 export const addCategory = (category: Omit<Category, 'id'>): Promise<Category> => addSingle<Category>('categories', category);
-// FIX: Added missing updateCategory function
 export const updateCategory = (category: Category): Promise<void> => updateSingle<Category>('categories', category);
-// FIX: Added missing deleteCategory function
 export const deleteCategory = (id: string): Promise<void> => deleteSingle('categories', id);
 
 // --- Users ---
-// FIX: Added missing addUser function
 export const addUser = (user: Omit<User, 'id'>): Promise<User> => addSingle<User>('users', user);
-// FIX: Added missing updateUser function
 export const updateUser = (user: User): Promise<void> => updateSingle<User>('users', user);
-// FIX: Added missing deleteUser function
 export const deleteUser = (id: string): Promise<void> => deleteSingle('users', id);
