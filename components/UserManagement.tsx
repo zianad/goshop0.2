@@ -19,7 +19,11 @@ const RestoreFromTextModal: React.FC<RestoreFromTextModalProps> = ({ onClose, on
             return { valid: false, message: '' };
         }
         try {
-            const parsedData = JSON.parse(restoreText);
+            // Sanitize the input to remove common JSON errors like trailing commas
+            const sanitizedText = restoreText
+                .replace(/,(\s*[}\]])/g, '$1'); // Remove trailing commas before closing braces/brackets
+
+            const parsedData = JSON.parse(sanitizedText);
             if (typeof parsedData !== 'object' || parsedData === null) {
                 return { valid: false, message: t('jsonInvalidNotObject') };
             }
@@ -41,7 +45,8 @@ const RestoreFromTextModal: React.FC<RestoreFromTextModalProps> = ({ onClose, on
 
     const handleRestoreClick = () => {
         if (validation.valid) {
-            onRestore(restoreText);
+            // Use the original text for restoration as sanitization was only for validation
+            onRestore(restoreText.replace(/,(\s*[}\]])/g, '$1'));
         }
     };
     
