@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Store, User, Tab, Product, ProductVariant, Category, Supplier, CartItem, Sale, Expense, Return, Purchase, PurchaseItem, VariantFormData } from './types';
+import { Tab } from './types';
+import type { Store, User, Product, ProductVariant, Category, Supplier, CartItem, Sale, Expense, Return, Purchase, PurchaseItem, VariantFormData, Customer, StockBatch } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useSessionStorage } from './hooks/useSessionStorage';
 import { useIndexedDBStore } from './hooks/useIndexedDBStore';
@@ -290,6 +291,96 @@ const App: React.FC = () => {
         await addSaleDB(paymentAsSale);
     };
 
+    const addExpenseHandler = async (expenseData: Omit<Expense, 'id'>): Promise<Expense | undefined> => {
+        const newExpense: Expense = { ...expenseData, id: crypto.randomUUID() };
+        try {
+            await addExpenseDB(newExpense);
+            return newExpense;
+        } catch(e) {
+            console.error("Failed to add expense", e);
+            return undefined;
+        }
+    }
+
+    const addCustomerHandler = async (customerData: Omit<Customer, 'id'>): Promise<Customer | undefined> => {
+        const newCustomer: Customer = { ...customerData, id: crypto.randomUUID() };
+        try {
+            await addCustomerDB(newCustomer);
+            return newCustomer;
+        } catch(e) {
+            console.error("Failed to add customer", e);
+            return undefined;
+        }
+    }
+
+    const addSupplierHandler = async (supplierData: Omit<Supplier, 'id'>): Promise<Supplier | undefined> => {
+        const newSupplier: Supplier = { ...supplierData, id: crypto.randomUUID() };
+        try {
+            await addSupplierDB(newSupplier);
+            return newSupplier;
+        } catch(e) {
+            console.error("Failed to add supplier", e);
+            return undefined;
+        }
+    }
+
+    const addPurchaseHandler = async (purchaseData: Omit<Purchase, 'id'>, items: PurchaseItem[]): Promise<void> => {
+        if (!activeStore) return;
+        const newPurchase: Purchase = { ...purchaseData, id: crypto.randomUUID() };
+        await addPurchaseDB(newPurchase);
+
+        const newStockBatches: StockBatch[] = items.map(item => ({
+            id: crypto.randomUUID(),
+            storeId: activeStore.id,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            purchasePrice: item.purchasePrice,
+            createdAt: new Date().toISOString(),
+        }));
+        if (newStockBatches.length > 0) {
+            await bulkAddStockBatchesDB(newStockBatches);
+        }
+    };
+
+    const paySupplierDebtHandler = async (supplierId: string, amount: number) => {
+        if (!activeStore) return;
+        const paymentAsPurchase: Purchase = {
+          id: crypto.randomUUID(),
+          storeId: activeStore.id,
+          supplierId: supplierId,
+          date: new Date().toISOString(),
+          items: [],
+          totalAmount: -amount,
+          reference: 'Debt Payment',
+          amountPaid: -amount,
+          remainingAmount: 0,
+          paymentMethod: 'cash', // Or a suitable default
+        };
+        await addPurchaseDB(paymentAsPurchase);
+    };
+
+    const addCategoryHandler = async (categoryData: Omit<Category, 'id'>): Promise<Category | undefined> => {
+        const newCategory: Category = { ...categoryData, id: crypto.randomUUID() };
+        try {
+            await addCategoryDB(newCategory);
+            return newCategory;
+        } catch(e) {
+            console.error("Failed to add category", e);
+            return undefined;
+        }
+    }
+
+    const addUserHandler = async (userData: Omit<User, 'id'>): Promise<User | undefined> => {
+        const newUser: User = { ...userData, id: crypto.randomUUID() };
+        try {
+            await addUserDB(newUser);
+            return newUser;
+        } catch(e) {
+            console.error("Failed to add user", e);
+            return undefined;
+        }
+    }
+
     const handleLoginSuccess = (user: User, store: Store) => {
         setActiveUser(user);
         setActiveStore(store);
@@ -374,11 +465,11 @@ const App: React.FC = () => {
             case Tab.POS: return <PointOfSale store={activeStore} user={activeUser} products={products} variants={variants} customers={customers} categories={categories} sales={sales} stockMap={stockMap} variantMap={variantMap} variantsByProduct={variantsByProduct} barcodeMap={barcodeMap} cart={cart} setCart={setCart} completeSale={completeSaleHandler} processReturn={processReturnHandler} payCustomerDebt={payCustomerDebtHandler} t={t} language={language} />;
             case Tab.Products: return <ProductManagement storeId={activeStore.id} products={products.filter(p => p.type === 'good')} variants={variants} suppliers={suppliers} categories={categories} stockMap={stockMap} addProduct={addProductHandler} updateProduct={updateProductHandler} deleteProduct={deleteProductHandler} addStockToVariant={addStockToVariantHandler} t={t} language={language} />;
             case Tab.Services: return <ServiceManagement storeId={activeStore.id} services={services} addService={addServiceHandler} updateService={updateServiceHandler} deleteService={deleteProductHandler} t={t} />;
-            case Tab.Finance: return <FinanceAndReports storeId={activeStore.id} sales={sales} expenses={expenses} purchases={purchases} suppliers={suppliers} returns={returns} customers={customers} users={users} addExpense={addExpenseDB} updateExpense={updateExpenseDB} deleteExpense={removeExpenseDB} deleteReturn={removeReturnDB} deleteAllReturns={clearReturnsDB} t={t} language={language} theme={theme} onReprintInvoice={(sale) => setPrintableSale({ sale, mode: 'invoice'})}/>;
-            case Tab.Customers: return <CustomerManagement storeId={activeStore.id} customers={customers} sales={sales} addCustomer={addCustomerDB} deleteCustomer={removeCustomerDB} payCustomerDebt={payCustomerDebtHandler} t={t} language={language} />;
-            case Tab.Suppliers: return <SupplierManagement storeId={activeStore.id} suppliers={suppliers} purchases={purchases} products={products} variants={variants} addSupplier={addSupplierDB} deleteSupplier={removeSupplierDB} addPurchase={async (p, i) => {await addPurchaseDB(p)}} paySupplierDebt={async (id, a) => {}} addProduct={addProductHandler} t={t} language={language} />;
-            case Tab.Categories: return <CategoryManagement storeId={activeStore.id} categories={categories} addCategory={addCategoryDB} updateCategory={updateCategoryDB} deleteCategory={removeCategoryDB} t={t} language={language} />;
-            case Tab.Settings: return <UserManagement activeUser={activeUser} store={activeStore} storeId={activeStore.id} users={users} addUser={addUserDB} updateUser={updateUserDB} deleteUser={removeUserDB} onUpdateStore={(d) => updateStoreDB({...activeStore, ...d})} onBackup={()=>{}} onRestore={async ()=>{}} t={t} />;
+            case Tab.Finance: return <FinanceAndReports storeId={activeStore.id} sales={sales} expenses={expenses} purchases={purchases} suppliers={suppliers} returns={returns} customers={customers} users={users} addExpense={addExpenseHandler} updateExpense={updateExpenseDB} deleteExpense={removeExpenseDB} deleteReturn={removeReturnDB} deleteAllReturns={clearReturnsDB} t={t} language={language} theme={theme} onReprintInvoice={(sale) => setPrintableSale({ sale, mode: 'invoice'})}/>;
+            case Tab.Customers: return <CustomerManagement storeId={activeStore.id} customers={customers} sales={sales} addCustomer={addCustomerHandler} deleteCustomer={removeCustomerDB} payCustomerDebt={payCustomerDebtHandler} t={t} language={language} />;
+            case Tab.Suppliers: return <SupplierManagement storeId={activeStore.id} suppliers={suppliers} purchases={purchases} products={products} variants={variants} addSupplier={addSupplierHandler} deleteSupplier={removeSupplierDB} addPurchase={addPurchaseHandler} paySupplierDebt={paySupplierDebtHandler} addProduct={addProductHandler} t={t} language={language} />;
+            case Tab.Categories: return <CategoryManagement storeId={activeStore.id} categories={categories} addCategory={addCategoryHandler} updateCategory={updateCategoryDB} deleteCategory={removeCategoryDB} t={t} language={language} />;
+            case Tab.Settings: return <UserManagement activeUser={activeUser} store={activeStore} storeId={activeStore.id} users={users} addUser={addUserHandler} updateUser={updateUserDB} deleteUser={removeUserDB} onUpdateStore={(d) => updateStoreDB({...activeStore, ...d})} onBackup={()=>{}} onRestore={async ()=>{}} t={t} />;
             default: return null;
         }
     };
