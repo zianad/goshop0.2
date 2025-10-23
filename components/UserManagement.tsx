@@ -13,6 +13,7 @@ interface RestoreFromTextModalProps {
 
 const RestoreFromTextModal: React.FC<RestoreFromTextModalProps> = ({ onClose, onRestore, t }) => {
     const [restoreText, setRestoreText] = useState('');
+    const [isRestoring, setIsRestoring] = useState(false);
 
     const validation = useMemo(() => {
         if (!restoreText) {
@@ -43,10 +44,18 @@ const RestoreFromTextModal: React.FC<RestoreFromTextModalProps> = ({ onClose, on
         }
     }, [restoreText, t]);
 
-    const handleRestoreClick = () => {
+    const handleRestoreClick = async () => {
         if (validation.valid) {
-            // Use the original text for restoration as sanitization was only for validation
-            onRestore(restoreText.replace(/,(\s*[}\]])/g, '$1'));
+            setIsRestoring(true);
+            try {
+                // Use the original text for restoration as sanitization was only for validation
+                await onRestore(restoreText.replace(/,(\s*[}\]])/g, '$1'));
+                // On success, the app will reload, so no need to handle success state here.
+            } catch (error) {
+                // Error is handled by the alert in the onRestore function itself.
+                // We just need to re-enable the button.
+                setIsRestoring(false);
+            }
         }
     };
     
@@ -71,8 +80,8 @@ const RestoreFromTextModal: React.FC<RestoreFromTextModalProps> = ({ onClose, on
                 </div>
                 <div className="flex justify-end gap-3 mt-4">
                     <button onClick={onClose} className="bg-gray-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500">{t('cancel')}</button>
-                    <button onClick={handleRestoreClick} disabled={!validation.valid} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 disabled:bg-gray-400 dark:disabled:bg-slate-500 disabled:cursor-not-allowed">
-                        {t('restoreButton')}
+                    <button onClick={handleRestoreClick} disabled={!validation.valid || isRestoring} className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 disabled:bg-gray-400 dark:disabled:bg-slate-500 disabled:cursor-not-allowed">
+                        {isRestoring ? t('saving') : t('restoreButton')}
                     </button>
                 </div>
             </div>

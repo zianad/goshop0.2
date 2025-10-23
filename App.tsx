@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Tab } from './types';
-import type { Store, User, Product, ProductVariant, Category, Supplier, CartItem, Sale, Expense, Return, Purchase, PurchaseItem, VariantFormData, Customer, StockBatch } from './types';
+import type { Store, User, Product, ProductVariant, Category, Supplier, CartItem, Sale, Expense, Return, Purchase, PurchaseItem, VariantFormData, Customer, StockBatch, StoreTypeMap } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useSessionStorage } from './hooks/useSessionStorage';
 import { useIndexedDBStore } from './hooks/useIndexedDBStore';
@@ -65,18 +65,18 @@ const App: React.FC = () => {
     }, [language, theme]);
 
     // Data Stores using IndexedDB
-    const { data: products, setData: setProducts, add: addProductDB, update: updateProductDB, remove: removeProductDB, bulkAdd: bulkAddProductsDB } = useIndexedDBStore<Product>('products');
-    const { data: variants, setData: setVariants, add: addVariantDB, update: updateVariantDB, remove: removeVariantDB, bulkAdd: bulkAddVariantsDB } = useIndexedDBStore<ProductVariant>('productVariants');
+    const { data: products, setData: setProducts, add: addProductDB, update: updateProductDB, remove: removeProductDB, bulkAdd: bulkAddProductsDB, clear: clearProductsDB } = useIndexedDBStore<Product>('products');
+    const { data: variants, setData: setVariants, add: addVariantDB, update: updateVariantDB, remove: removeVariantDB, bulkAdd: bulkAddVariantsDB, clear: clearVariantsDB } = useIndexedDBStore<ProductVariant>('productVariants');
     const { data: sales, setData: setSales, add: addSaleDB, clear: clearSalesDB } = useIndexedDBStore<Sale>('sales');
     const { data: expenses, setData: setExpenses, add: addExpenseDB, update: updateExpenseDB, remove: removeExpenseDB, clear: clearExpensesDB } = useIndexedDBStore<Expense>('expenses');
-    const { data: users, setData: setUsers, add: addUserDB, update: updateUserDB, remove: removeUserDB } = useIndexedDBStore<User>('users');
+    const { data: users, setData: setUsers, add: addUserDB, update: updateUserDB, remove: removeUserDB, clear: clearUsersDB } = useIndexedDBStore<User>('users');
     const { data: returns, setData: setReturns, add: addReturnDB, remove: removeReturnDB, clear: clearReturnsDB } = useIndexedDBStore<Return>('returns');
-    const { data: stores, setData: setStores, update: updateStoreDB } = useIndexedDBStore<Store>('stores');
-    const { data: customers, setData: setCustomers, add: addCustomerDB, remove: removeCustomerDB } = useIndexedDBStore<Customer>('customers');
-    const { data: suppliers, setData: setSuppliers, add: addSupplierDB, remove: removeSupplierDB } = useIndexedDBStore<Supplier>('suppliers');
-    const { data: categories, setData: setCategories, add: addCategoryDB, update: updateCategoryDB, remove: removeCategoryDB } = useIndexedDBStore<Category>('categories');
-    const { data: purchases, setData: setPurchases, add: addPurchaseDB, update: updatePurchaseDB } = useIndexedDBStore<Purchase>('purchases');
-    const { data: stockBatches, setData: setStockBatches, add: addStockBatchDB, bulkAdd: bulkAddStockBatchesDB } = useIndexedDBStore<StockBatch>('stockBatches');
+    const { data: stores, setData: setStores, update: updateStoreDB, clear: clearStoresDB } = useIndexedDBStore<Store>('stores');
+    const { data: customers, setData: setCustomers, add: addCustomerDB, remove: removeCustomerDB, clear: clearCustomersDB } = useIndexedDBStore<Customer>('customers');
+    const { data: suppliers, setData: setSuppliers, add: addSupplierDB, remove: removeSupplierDB, clear: clearSuppliersDB } = useIndexedDBStore<Supplier>('suppliers');
+    const { data: categories, setData: setCategories, add: addCategoryDB, update: updateCategoryDB, remove: removeCategoryDB, clear: clearCategoriesDB } = useIndexedDBStore<Category>('categories');
+    const { data: purchases, setData: setPurchases, add: addPurchaseDB, update: updatePurchaseDB, clear: clearPurchasesDB } = useIndexedDBStore<Purchase>('purchases');
+    const { data: stockBatches, setData: setStockBatches, add: addStockBatchDB, bulkAdd: bulkAddStockBatchesDB, clear: clearStockBatchesDB } = useIndexedDBStore<StockBatch>('stockBatches');
 
     // POS state
     const [cart, setCart] = useState<CartItem[]>([]);
@@ -122,6 +122,70 @@ const App: React.FC = () => {
     [variants, stockMap]);
 
     const services = useMemo(() => products.filter(p => p.type === 'service'), [products]);
+    
+    const handleBackup = () => {
+        const backupData = {
+            stores, users, products, productVariants: variants, categories, suppliers, customers,
+            sales, expenses, returns, purchases, stockBatches
+        };
+        const jsonString = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `backup-${activeStore?.name.replace(/\s/g, '_')}-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleRestore = async (jsonString: string) => {
+        if (!window.confirm(t('restoreConfirm'))) {
+            return;
+        }
+
+        try {
+            const backupData: StoreTypeMap = JSON.parse(jsonString);
+
+            // Basic validation
+            if (!backupData.stores || !backupData.users) {
+                throw new Error(t('invalidBackupStructure'));
+            }
+             if (backupData.stores[0]?.id !== activeStore?.id) {
+                throw new Error(t('restoreStoreIdMismatchError', { storeName: activeStore?.name || '' }));
+            }
+
+            // Clear all existing data
+            await Promise.all([
+                clearProductsDB(), clearVariantsDB(), clearSalesDB(), clearExpensesDB(), clearUsersDB(),
+                clearReturnsDB(), clearStoresDB(), clearCustomersDB(), clearSuppliersDB(), clearCategoriesDB(),
+                clearPurchasesDB(), clearStockBatchesDB()
+            ]);
+
+            // Bulk add new data
+            await bulkAddProductsDB(backupData.products || []);
+            await bulkAddVariantsDB(backupData.productVariants || []);
+            await bulkAddStockBatchesDB(backupData.stockBatches || []);
+            await setStores(backupData.stores || []); // Using setData as it's usually small
+            await setUsers(backupData.users || []);
+            await setCategories(backupData.categories || []);
+            await setSuppliers(backupData.suppliers || []);
+            await setCustomers(backupData.customers || []);
+            await setSales(backupData.sales || []);
+            await setExpenses(backupData.expenses || []);
+            await setReturns(backupData.returns || []);
+            await setPurchases(backupData.purchases || []);
+
+            alert(t('restoreSuccess'));
+            window.location.reload();
+
+        } catch (error: any) {
+            console.error("Restore failed:", error);
+            const errorMessage = t((error.message || 'restoreError') as keyof typeof translations.fr) || error.message;
+            alert(`${t('restoreError')}: ${errorMessage}`);
+            throw error; // Re-throw to be caught in UserManagement component
+        }
+    };
+
 
     // Data mutation functions
     const addProductHandler = async (productData: Omit<Product, 'id'>, variantsData: Omit<VariantFormData, 'stockQuantity'>[]) => {
@@ -469,7 +533,7 @@ const App: React.FC = () => {
             case Tab.Customers: return <CustomerManagement storeId={activeStore.id} customers={customers} sales={sales} addCustomer={addCustomerHandler} deleteCustomer={removeCustomerDB} payCustomerDebt={payCustomerDebtHandler} t={t} language={language} />;
             case Tab.Suppliers: return <SupplierManagement storeId={activeStore.id} suppliers={suppliers} purchases={purchases} products={products} variants={variants} addSupplier={addSupplierHandler} deleteSupplier={removeSupplierDB} addPurchase={addPurchaseHandler} paySupplierDebt={paySupplierDebtHandler} addProduct={addProductHandler} t={t} language={language} />;
             case Tab.Categories: return <CategoryManagement storeId={activeStore.id} categories={categories} addCategory={addCategoryHandler} updateCategory={updateCategoryDB} deleteCategory={removeCategoryDB} t={t} language={language} />;
-            case Tab.Settings: return <UserManagement activeUser={activeUser} store={activeStore} storeId={activeStore.id} users={users} addUser={addUserHandler} updateUser={updateUserDB} deleteUser={removeUserDB} onUpdateStore={(d) => updateStoreDB({...activeStore, ...d})} onBackup={()=>{}} onRestore={async ()=>{}} t={t} />;
+            case Tab.Settings: return <UserManagement activeUser={activeUser} store={activeStore} storeId={activeStore.id} users={users} addUser={addUserHandler} updateUser={updateUserDB} deleteUser={removeUserDB} onUpdateStore={(d) => updateStoreDB({...activeStore, ...d})} onBackup={handleBackup} onRestore={handleRestore} t={t} />;
             default: return null;
         }
     };
